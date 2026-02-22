@@ -1,0 +1,22 @@
+name: PurpurPvP
+version: '1.0'
+main: com.usainsrht.purpurpvp.PurpurPvP
+api-version: '1.21'
+description: A comprehensive PvP plugin with duels, kits, ranked, and matchmaking.
+authors:
+  - usainsrht
+
+permissions:
+  purpurpvp.duel:
+    description: Allows using /duel
+    default: true
+  purpurpvp.queue:
+    description: Allows using /queue
+    default: true
+  purpurpvp.admin:
+    description: Access to admin commands
+    default: op
+  purpurpvp.admin.sign:
+    description: Allows creating PvP room signs
+    default: op
+

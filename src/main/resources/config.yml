@@ -1,0 +1,33 @@
+# PurpurPvP Configuration
+
+database:
+  type: H2  # H2 or MYSQL
+  host: localhost
+  port: 3306
+  name: purpurpvp
+  username: root
+  password: ""
+
+match:
+  default-best-of: 1
+  countdown-seconds: 5
+  max-room-idle-seconds: 300
+
+xp:
+  per-kill: 25
+  per-round-win: 50
+  per-match-win: 100
+  per-match-complete: 30
+  per-level: 500
+
+elo:
+  k-factor: 32
+
+game-rules:
+  allow-enderpearls: true
+  allow-bows: true
+  allow-block-breaking: false
+  allow-shields: true
+  allow-hunger: false
+  natural-regen: false
+

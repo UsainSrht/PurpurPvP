@@ -1,0 +1,56 @@
+# PurpurPvP Messages (MiniMessage format)
+
+prefix: "<gradient:#9b59b6:#8e44ad>[PurpurPvP]</gradient> "
+
+match:
+  countdown: "<yellow>Match starts in <gold>{seconds}</gold> seconds!"
+  started: "<green>The match has begun! Good luck!"
+  round-win: "<gold>Round won by <yellow>{team}</yellow>! Score: {score}"
+  match-win: "<gold><bold>Match won by <yellow>{team}</yellow>!"
+  eliminated: "<red>You have been eliminated!"
+  draw: "<yellow>This round was a draw!"
+
+duel:
+  request-sent: "<green>Duel request sent to <yellow>{player}</yellow>."
+  request-received: "<green><yellow>{player}</yellow> wants to duel you! Click to accept."
+  request-expired: "<red>Duel request from <yellow>{player}</yellow> has expired."
+  accepted: "<green>Duel accepted! Preparing match..."
+  declined: "<red>Duel declined."
+  already-in-match: "<red>You are already in a match!"
+
+kit:
+  saved: "<green>Kit <yellow>{name}</yellow> saved successfully!"
+  deleted: "<red>Kit <yellow>{name}</yellow> deleted."
+  not-found: "<red>Kit not found."
+  applied: "<green>Kit <yellow>{name}</yellow> applied!"
+
+room:
+  created: "<green>Room created! You are the host."
+  joined: "<green><yellow>{player}</yellow> joined the room."
+  left: "<yellow>{player}</yellow> left the room."
+  full: "<red>This room is full!"
+  closed: "<red>The room has been closed."
+  starting: "<green>Room is starting! Get ready..."
+
+queue:
+  joined: "<green>You have joined the <yellow>{mode}</yellow> queue."
+  left: "<red>You left the queue."
+  searching: "<yellow>Searching for opponents..."
+  found: "<green>Match found! Teleporting..."
+
+ranked:
+  level-up: "<gold><bold>LEVEL UP!</bold> You are now level <yellow>{level}</yellow>!"
+  xp-gained: "<green>+{xp} XP"
+  elo-change: "<gray>Elo: {old} → {new} ({change})"
+
+chat:
+  lobby-format: "<gray>[Lobby] <white>{player}: {message}"
+  match-format: "<aqua>[Match] <white>{player}: {message}"
+  spectator-format: "<gray>[Spectator] <italic>{player}: {message}"
+  team-format: "<{color}>[Team] {player}: {message}"
+
+error:
+  no-permission: "<red>You don't have permission to do that."
+  player-not-found: "<red>Player not found."
+  invalid-args: "<red>Invalid arguments. Usage: {usage}"
+
