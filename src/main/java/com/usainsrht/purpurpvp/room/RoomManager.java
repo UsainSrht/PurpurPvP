@@ -84,7 +84,7 @@ public class RoomManager {
         if (room == null) return;
 
         room.setState(RoomState.CLOSED);
-        room.broadcastToRoom(Component.text("The room has been closed.", NamedTextColor.RED));
+        room.broadcastToRoom(plugin.getMessageService().toComponent("room.closed"));
 
         for (UUID uuid : room.getPlayers()) {
             playerRoomMap.remove(uuid);
@@ -102,25 +102,14 @@ public class RoomManager {
 
         // Validate kit
         if (config.getKit() == null) {
-            room.broadcastToRoom(Component.text("A kit must be selected before starting!", NamedTextColor.RED));
+            room.broadcastToRoom(plugin.getMessageService().toComponent("room.kit-required"));
             return false;
         }
 
-        // Find arena if not set
-        if (config.getArena() == null) {
-            Arena arena = plugin.getArenaManager().getAvailableArena(config.getTeamCount());
-            if (arena == null) {
-                room.broadcastToRoom(Component.text("No available arenas! Try again later.", NamedTextColor.RED));
-                return false;
-            }
-            config.setArena(arena);
-        }
-
-        // Check if arena is available
-        if (plugin.getArenaManager().isInUse(config.getArena().getName())) {
-            room.broadcastToRoom(Component.text("The selected arena is in use!", NamedTextColor.RED));
-            return false;
-        }
+        // Dynamically acquire an isolated arena instance
+        String templateName = config.getArena() != null ? config.getArena().getName() : "default";
+        var instance = plugin.getDynamicArenaManager().acquireInstance(templateName);
+        config.setArenaInstance(instance);
 
         room.setState(RoomState.IN_MATCH);
 

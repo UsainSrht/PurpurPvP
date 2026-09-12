@@ -61,7 +61,7 @@ public class QueueManager {
 
         Player p = Bukkit.getPlayer(playerUuid);
         if (p != null) {
-            p.sendMessage(Component.text("You joined the " + mode + " queue. Searching...", NamedTextColor.GREEN));
+            plugin.getMessageService().send(p, "queue.joined", net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("mode", mode));
         }
 
         return true;
@@ -81,7 +81,7 @@ public class QueueManager {
 
         Player p = Bukkit.getPlayer(playerUuid);
         if (p != null) {
-            p.sendMessage(Component.text("You left the queue.", NamedTextColor.RED));
+            plugin.getMessageService().send(p, "queue.left");
         }
     }
 
@@ -164,27 +164,15 @@ public class QueueManager {
             config.setKit(globalKits.iterator().next());
         }
 
-        // Find available arena
-        Arena arena = plugin.getArenaManager().getAvailableArena(teamCount);
-        if (arena == null) {
-            for (QueueEntry e : entries) {
-                Player p = Bukkit.getPlayer(e.getPlayerUuid());
-                if (p != null) {
-                    p.sendMessage(Component.text("No arena available. Staying in queue...", NamedTextColor.YELLOW));
-                }
-                // Put back in queue
-                queues.computeIfAbsent(mode, k -> new ConcurrentLinkedDeque<>()).add(e);
-                playerQueueMap.put(e.getPlayerUuid(), mode);
-            }
-            return;
-        }
-        config.setArena(arena);
+        // Dynamically acquire an isolated arena instance
+        var instance = plugin.getDynamicArenaManager().acquireInstance("default");
+        config.setArenaInstance(instance);
 
-        // Notify players
+        // Notify players via YamlMessageAPI
         for (QueueEntry e : entries) {
             Player p = Bukkit.getPlayer(e.getPlayerUuid());
             if (p != null) {
-                p.sendMessage(Component.text("Match found! Preparing...", NamedTextColor.GREEN));
+                plugin.getMessageService().send(p, "queue.found");
             }
         }
 

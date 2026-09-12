@@ -21,6 +21,15 @@ public class Team {
         this.name = name;
     }
 
+    public Team(int index, String name, Collection<UUID> initialMembers) {
+        this(index, name);
+        if (initialMembers != null) {
+            for (UUID uuid : initialMembers) {
+                addMember(uuid);
+            }
+        }
+    }
+
     public int getIndex() { return index; }
     public String getName() { return name; }
 

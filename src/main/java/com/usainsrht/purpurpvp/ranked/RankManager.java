@@ -126,7 +126,8 @@ public class RankManager {
                 // Notify player
                 Player p = Bukkit.getPlayer(uuid);
                 if (p != null) {
-                    p.sendMessage(Component.text("+" + xpEarned + " XP", NamedTextColor.GREEN));
+                    plugin.getMessageService().send(p, "ranked.xp-gained",
+                            net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("xp", String.valueOf(xpEarned)));
                 }
 
                 // Save participant data
@@ -180,10 +181,11 @@ public class RankManager {
         Player p = Bukkit.getPlayer(profile.getUuid());
         if (p != null) {
             String sign = eloChange >= 0 ? "+" : "";
-            p.sendMessage(Component.text(
-                    "Elo: " + String.format("%.0f", oldElo) + " → " + String.format("%.0f", newElo) +
-                            " (" + sign + String.format("%.0f", eloChange) + ")",
-                    eloChange >= 0 ? NamedTextColor.GREEN : NamedTextColor.RED));
+            plugin.getMessageService().send(p, "ranked.elo-change",
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("old_elo", String.format("%.0f", oldElo)),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("new_elo", String.format("%.0f", newElo)),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("sign", sign),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("change", String.format("%.0f", eloChange)));
         }
 
         return eloChange;
@@ -192,12 +194,9 @@ public class RankManager {
     private void onLevelUp(UUID uuid, int oldLevel, int newLevel) {
         Player p = Bukkit.getPlayer(uuid);
         if (p != null) {
-            p.showTitle(Title.title(
-                    Component.text("LEVEL UP!", NamedTextColor.GOLD),
-                    Component.text("Level " + oldLevel + " → " + newLevel, NamedTextColor.YELLOW),
-                    Title.Times.times(Duration.ZERO, Duration.ofSeconds(3), Duration.ofSeconds(1))
-            ));
-            p.sendMessage(Component.text("You are now level " + newLevel + "!", NamedTextColor.GOLD));
+            plugin.getMessageService().send(p, "ranked.level-up",
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("old_level", String.valueOf(oldLevel)),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("new_level", String.valueOf(newLevel)));
         }
     }
 

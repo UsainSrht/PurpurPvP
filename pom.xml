@@ -58,6 +58,14 @@
                             <pattern>net.wesjd.anvilgui</pattern>
                             <shadedPattern>com.usainsrht.purpurpvp.libs.anvilgui</shadedPattern>
                         </relocation>
+                        <relocation>
+                            <pattern>me.usainsrht.yamlmessage</pattern>
+                            <shadedPattern>com.usainsrht.purpurpvp.libs.yamlmessage</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>me.usainsrht.itemapi</pattern>
+                            <shadedPattern>com.usainsrht.purpurpvp.libs.itemapi</shadedPattern>
+                        </relocation>
                     </relocations>
                     <filters>
                         <filter>
@@ -90,6 +98,10 @@
         <repository>
             <id>codemc-snapshots</id>
             <url>https://repo.codemc.io/repository/maven-snapshots/</url>
+        </repository>
+        <repository>
+            <id>codemc-public</id>
+            <url>https://repo.codemc.io/repository/maven-public/</url>
         </repository>
     </repositories>
 
@@ -134,6 +146,35 @@
             <groupId>net.wesjd</groupId>
             <artifactId>anvilgui</artifactId>
             <version>1.10.3-SNAPSHOT</version>
+        </dependency>
+
+        <!-- YamlMessageAPI -->
+        <dependency>
+            <groupId>me.usainsrht</groupId>
+            <artifactId>YamlMessageAPI</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+
+        <!-- ItemAPI: itemtext -->
+        <dependency>
+            <groupId>me.usainsrht.itemapi</groupId>
+            <artifactId>itemtext</artifactId>
+            <version>1.0.6</version>
+        </dependency>
+
+        <!-- ItemAPI: yamlitem -->
+        <dependency>
+            <groupId>me.usainsrht.itemapi</groupId>
+            <artifactId>yamlitem</artifactId>
+            <version>1.0.6</version>
+        </dependency>
+
+        <!-- JUnit 5 for Testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.11.4</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

@@ -7,18 +7,21 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.usainsrht.purpurpvp.PurpurPvP;
 import com.usainsrht.purpurpvp.arena.Arena;
 import com.usainsrht.purpurpvp.kit.Kit;
+import com.usainsrht.purpurpvp.match.MatchInventorySnapshot;
+import com.usainsrht.purpurpvp.match.gui.InventoryInspectGUI;
 import com.usainsrht.purpurpvp.ranked.PlayerProfile;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.Collection;
+import java.util.UUID;
 
 /**
  * /purpurpvp — Admin and utility commands tree via Brigadier.
+ * Fully localized with YamlMessageAPI.
  */
 @SuppressWarnings("UnstableApiUsage")
 public class PurpurPvPCommand {
@@ -38,9 +41,12 @@ public class PurpurPvPCommand {
                         .requires(src -> src.getSender().hasPermission("purpurpvp.admin"))
                         .executes(ctx -> {
                             plugin.getConfigManager().reload();
+                            plugin.getMessageService().reload();
                             plugin.getArenaManager().loadArenas();
+                            plugin.getDynamicArenaManager().loadTemplates();
                             plugin.getKitManager().loadGlobalKits();
-                            ctx.getSource().getSender().sendMessage(Component.text("Config reloaded!", NamedTextColor.GREEN));
+                            if (plugin.getLobbyItemManager() != null) plugin.getLobbyItemManager().loadItems();
+                            plugin.getMessageService().send(ctx.getSource().getSender(), "admin.reload");
                             return Command.SINGLE_SUCCESS;
                         }))
 
@@ -50,7 +56,7 @@ public class PurpurPvPCommand {
                         .executes(ctx -> {
                             if (ctx.getSource().getSender() instanceof Player player) {
                                 plugin.setLobbyLocation(player.getLocation());
-                                player.sendMessage(Component.text("Lobby set!", NamedTextColor.GREEN));
+                                plugin.getMessageService().send(player, "admin.setlobby");
                             }
                             return Command.SINGLE_SUCCESS;
                         }))
@@ -61,6 +67,28 @@ public class PurpurPvPCommand {
                             if (ctx.getSource().getSender() instanceof Player player) plugin.getLeaderboardGUI().open(player);
                             return Command.SINGLE_SUCCESS;
                         }))
+
+                // /purpurpvp inspect <matchId> <player>
+                .then(Commands.literal("inspect")
+                        .then(Commands.argument("match", StringArgumentType.word())
+                                .then(Commands.argument("target", StringArgumentType.word())
+                                        .executes(ctx -> {
+                                            if (ctx.getSource().getSender() instanceof Player viewer) {
+                                                try {
+                                                    UUID matchId = UUID.fromString(StringArgumentType.getString(ctx, "match"));
+                                                    String targetName = StringArgumentType.getString(ctx, "target");
+                                                    MatchInventorySnapshot snapshot = plugin.getMatchManager().getSnapshot(matchId, targetName);
+                                                    if (snapshot != null) {
+                                                        InventoryInspectGUI.open(viewer, snapshot);
+                                                    } else {
+                                                        plugin.getMessageService().send(viewer, "error.player-not-found");
+                                                    }
+                                                } catch (IllegalArgumentException e) {
+                                                    plugin.getMessageService().send(viewer, "error.invalid-args", Placeholder.parsed("usage", "/purpurpvp inspect <matchId> <player>"));
+                                                }
+                                            }
+                                            return Command.SINGLE_SUCCESS;
+                                        }))))
 
                 // /purpurpvp stats [player]
                 .then(Commands.literal("stats")
@@ -74,7 +102,7 @@ public class PurpurPvPCommand {
                                     if (ctx.getSource().getSender() instanceof Player player) {
                                         Player target = Bukkit.getPlayerExact(StringArgumentType.getString(ctx, "target"));
                                         if (target != null) showStats(player, target);
-                                        else player.sendMessage(Component.text("Player not found!", NamedTextColor.RED));
+                                        else plugin.getMessageService().send(player, "error.player-not-found");
                                     }
                                     return Command.SINGLE_SUCCESS;
                                 })))
@@ -98,21 +126,24 @@ public class PurpurPvPCommand {
                                 .executes(ctx -> {
                                     String name = StringArgumentType.getString(ctx, "name");
                                     if (plugin.getArenaManager().getArena(name) != null) {
-                                        ctx.getSource().getSender().sendMessage(Component.text("Already exists!", NamedTextColor.RED));
+                                        plugin.getMessageService().send(ctx.getSource().getSender(), "error.invalid-args", Placeholder.parsed("usage", "Arena already exists!"));
                                         return Command.SINGLE_SUCCESS;
                                     }
                                     Arena arena = plugin.getArenaManager().createArena(name);
                                     if (ctx.getSource().getSender() instanceof Player p) arena.setWorld(p.getWorld().getName());
                                     plugin.getArenaManager().saveArenas();
-                                    ctx.getSource().getSender().sendMessage(Component.text("Arena '" + name + "' created!", NamedTextColor.GREEN));
+                                    plugin.getDynamicArenaManager().loadTemplates();
+                                    plugin.getMessageService().send(ctx.getSource().getSender(), "admin.arena-created", Placeholder.parsed("name", name));
                                     return Command.SINGLE_SUCCESS;
                                 })))
                 .then(Commands.literal("delete")
                         .then(Commands.argument("name", StringArgumentType.word())
                                 .suggests((ctx, b) -> { plugin.getArenaManager().getAllArenas().forEach(a -> b.suggest(a.getName())); return b.buildFuture(); })
                                 .executes(ctx -> {
-                                    plugin.getArenaManager().deleteArena(StringArgumentType.getString(ctx, "name"));
-                                    ctx.getSource().getSender().sendMessage(Component.text("Deleted!", NamedTextColor.RED));
+                                    String name = StringArgumentType.getString(ctx, "name");
+                                    plugin.getArenaManager().deleteArena(name);
+                                    plugin.getDynamicArenaManager().loadTemplates();
+                                    plugin.getMessageService().send(ctx.getSource().getSender(), "admin.arena-deleted", Placeholder.parsed("name", name));
                                     return Command.SINGLE_SUCCESS;
                                 })))
                 .then(Commands.literal("setspawn")
@@ -121,11 +152,17 @@ public class PurpurPvPCommand {
                                 .then(Commands.argument("team", IntegerArgumentType.integer(0))
                                         .executes(ctx -> {
                                             if (!(ctx.getSource().getSender() instanceof Player player)) return Command.SINGLE_SUCCESS;
-                                            Arena arena = plugin.getArenaManager().getArena(StringArgumentType.getString(ctx, "name"));
-                                            if (arena == null) { player.sendMessage(Component.text("Not found!", NamedTextColor.RED)); return Command.SINGLE_SUCCESS; }
-                                            arena.addTeamSpawnPoint(IntegerArgumentType.getInteger(ctx, "team"), player.getLocation());
+                                            String name = StringArgumentType.getString(ctx, "name");
+                                            int team = IntegerArgumentType.getInteger(ctx, "team");
+                                            Arena arena = plugin.getArenaManager().getArena(name);
+                                            if (arena == null) {
+                                                plugin.getMessageService().send(player, "error.player-not-found");
+                                                return Command.SINGLE_SUCCESS;
+                                            }
+                                            arena.addTeamSpawnPoint(team, player.getLocation());
                                             plugin.getArenaManager().saveArenas();
-                                            player.sendMessage(Component.text("Spawn set!", NamedTextColor.GREEN));
+                                            plugin.getDynamicArenaManager().loadTemplates();
+                                            plugin.getMessageService().send(player, "admin.spawn-set", Placeholder.parsed("team", String.valueOf(team)), Placeholder.parsed("name", name));
                                             return Command.SINGLE_SUCCESS;
                                         }))))
                 .then(Commands.literal("setspec")
@@ -133,23 +170,32 @@ public class PurpurPvPCommand {
                                 .suggests((ctx, b) -> { plugin.getArenaManager().getAllArenas().forEach(a -> b.suggest(a.getName())); return b.buildFuture(); })
                                 .executes(ctx -> {
                                     if (!(ctx.getSource().getSender() instanceof Player player)) return Command.SINGLE_SUCCESS;
-                                    Arena arena = plugin.getArenaManager().getArena(StringArgumentType.getString(ctx, "name"));
-                                    if (arena == null) { player.sendMessage(Component.text("Not found!", NamedTextColor.RED)); return Command.SINGLE_SUCCESS; }
+                                    String name = StringArgumentType.getString(ctx, "name");
+                                    Arena arena = plugin.getArenaManager().getArena(name);
+                                    if (arena == null) {
+                                        plugin.getMessageService().send(player, "error.player-not-found");
+                                        return Command.SINGLE_SUCCESS;
+                                    }
                                     arena.setSpectatorSpawn(player.getLocation());
                                     plugin.getArenaManager().saveArenas();
-                                    player.sendMessage(Component.text("Spectator spawn set!", NamedTextColor.GREEN));
+                                    plugin.getDynamicArenaManager().loadTemplates();
+                                    plugin.getMessageService().send(player, "admin.spec-set", Placeholder.parsed("name", name));
                                     return Command.SINGLE_SUCCESS;
                                 })))
                 .then(Commands.literal("list")
                         .executes(ctx -> {
                             Collection<Arena> arenas = plugin.getArenaManager().getAllArenas();
-                            if (arenas.isEmpty()) { ctx.getSource().getSender().sendMessage(Component.text("No arenas.", NamedTextColor.YELLOW)); return Command.SINGLE_SUCCESS; }
-                            ctx.getSource().getSender().sendMessage(Component.text("--- Arenas ---", NamedTextColor.GOLD));
+                            if (arenas.isEmpty()) {
+                                plugin.getMessageService().send(ctx.getSource().getSender(), "error.invalid-args", Placeholder.parsed("usage", "No arenas configured."));
+                                return Command.SINGLE_SUCCESS;
+                            }
                             for (Arena a : arenas) {
                                 boolean inUse = plugin.getArenaManager().isInUse(a.getName());
-                                ctx.getSource().getSender().sendMessage(Component.text("  " + a.getName(), NamedTextColor.WHITE)
-                                        .append(Component.text(" | Teams: " + a.getMaxTeams(), NamedTextColor.GRAY))
-                                        .append(Component.text(" | " + (inUse ? "IN USE" : "Available"), inUse ? NamedTextColor.RED : NamedTextColor.GREEN)));
+                                plugin.getMessageService().sendWithoutPrefix(ctx.getSource().getSender(), "admin.arena-list-entry",
+                                        Placeholder.parsed("name", a.getName()),
+                                        Placeholder.parsed("teams", String.valueOf(a.getMaxTeams())),
+                                        Placeholder.parsed("status", inUse ? "IN USE" : "Ready"),
+                                        Placeholder.parsed("color", inUse ? "<red>" : "<green>"));
                             }
                             return Command.SINGLE_SUCCESS;
                         }));
@@ -167,24 +213,24 @@ public class PurpurPvPCommand {
                                     String name = StringArgumentType.getString(ctx, "name");
                                     Kit kit = plugin.getKitManager().createFromInventory(player, name);
                                     plugin.getKitManager().saveGlobalKit(kit);
-                                    player.sendMessage(Component.text("Global kit '" + name + "' created!", NamedTextColor.GREEN));
+                                    plugin.getMessageService().send(player, "kit.created", Placeholder.parsed("name", name));
                                     return Command.SINGLE_SUCCESS;
                                 })))
                 .then(Commands.literal("delete")
                         .then(Commands.argument("name", StringArgumentType.word())
                                 .suggests((ctx, b) -> { plugin.getKitManager().getAllGlobalKits().forEach(k -> b.suggest(k.getName())); return b.buildFuture(); })
                                 .executes(ctx -> {
-                                    plugin.getKitManager().deleteGlobalKit(StringArgumentType.getString(ctx, "name"));
-                                    ctx.getSource().getSender().sendMessage(Component.text("Deleted!", NamedTextColor.RED));
+                                    String name = StringArgumentType.getString(ctx, "name");
+                                    plugin.getKitManager().deleteGlobalKit(name);
+                                    plugin.getMessageService().send(ctx.getSource().getSender(), "kit.deleted", Placeholder.parsed("name", name));
                                     return Command.SINGLE_SUCCESS;
                                 })))
                 .then(Commands.literal("list")
                         .executes(ctx -> {
                             Collection<Kit> kits = plugin.getKitManager().getAllGlobalKits();
-                            if (kits.isEmpty()) { ctx.getSource().getSender().sendMessage(Component.text("No global kits.", NamedTextColor.YELLOW)); return Command.SINGLE_SUCCESS; }
-                            ctx.getSource().getSender().sendMessage(Component.text("--- Global Kits ---", NamedTextColor.GOLD));
                             for (Kit k : kits) {
-                                ctx.getSource().getSender().sendMessage(Component.text("  " + k.getName(), NamedTextColor.WHITE));
+                                plugin.getMessageService().sendWithoutPrefix(ctx.getSource().getSender(), "admin.kit-list-entry",
+                                        Placeholder.parsed("name", k.getName()));
                             }
                             return Command.SINGLE_SUCCESS;
                         }));
@@ -194,23 +240,34 @@ public class PurpurPvPCommand {
 
     private void showStats(Player viewer, Player target) {
         PlayerProfile profile = plugin.getRankManager().getProfile(target.getUniqueId());
-        if (profile == null) { viewer.sendMessage(Component.text("No data.", NamedTextColor.RED)); return; }
-        viewer.sendMessage(Component.text("--- " + profile.getUsername() + " ---", NamedTextColor.GOLD));
-        viewer.sendMessage(Component.text("  Level: " + profile.getLevel() + " (" + profile.getXp() + " XP)", NamedTextColor.WHITE));
-        viewer.sendMessage(Component.text("  Elo: " + String.format("%.0f", profile.getEloRating()), NamedTextColor.YELLOW));
-        viewer.sendMessage(Component.text("  W/L: " + profile.getWins() + "/" + profile.getLosses(), NamedTextColor.GREEN));
-        viewer.sendMessage(Component.text("  K/D: " + profile.getKills() + "/" + profile.getDeaths(), NamedTextColor.AQUA));
+        if (profile == null) {
+            plugin.getMessageService().send(viewer, "error.player-not-found");
+            return;
+        }
+        plugin.getMessageService().sendWithoutPrefix(viewer, "stats.header", Placeholder.parsed("username", profile.getUsername()));
+        plugin.getMessageService().sendWithoutPrefix(viewer, "stats.level",
+                Placeholder.parsed("level", String.valueOf(profile.getLevel())),
+                Placeholder.parsed("xp", String.valueOf(profile.getXp())));
+        plugin.getMessageService().sendWithoutPrefix(viewer, "stats.elo",
+                Placeholder.parsed("elo", String.format("%.0f", profile.getEloRating())));
+        plugin.getMessageService().sendWithoutPrefix(viewer, "stats.wl",
+                Placeholder.parsed("wins", String.valueOf(profile.getWins())),
+                Placeholder.parsed("losses", String.valueOf(profile.getLosses())));
+        plugin.getMessageService().sendWithoutPrefix(viewer, "stats.kd",
+                Placeholder.parsed("kills", String.valueOf(profile.getKills())),
+                Placeholder.parsed("deaths", String.valueOf(profile.getDeaths())));
     }
 
     private void sendHelp(CommandSourceStack source) {
-        source.getSender().sendMessage(Component.text("--- PurpurPvP ---", NamedTextColor.DARK_PURPLE));
-        source.getSender().sendMessage(Component.text("  /duel <player> [kit]", NamedTextColor.GOLD));
-        source.getSender().sendMessage(Component.text("  /queue <mode>", NamedTextColor.GOLD));
-        source.getSender().sendMessage(Component.text("  /purpurpvp stats [player]", NamedTextColor.GOLD));
-        source.getSender().sendMessage(Component.text("  /purpurpvp leaderboard", NamedTextColor.GOLD));
-        if (source.getSender().hasPermission("purpurpvp.admin")) {
-            source.getSender().sendMessage(Component.text("  /purpurpvp reload | arena | kit | setlobby", NamedTextColor.GOLD));
+        var sender = source.getSender();
+        plugin.getMessageService().sendWithoutPrefix(sender, "help.header");
+        plugin.getMessageService().sendWithoutPrefix(sender, "help.duel");
+        plugin.getMessageService().sendWithoutPrefix(sender, "help.queue");
+        plugin.getMessageService().sendWithoutPrefix(sender, "help.party");
+        plugin.getMessageService().sendWithoutPrefix(sender, "help.stats");
+        plugin.getMessageService().sendWithoutPrefix(sender, "help.leaderboard");
+        if (sender.hasPermission("purpurpvp.admin")) {
+            plugin.getMessageService().sendWithoutPrefix(sender, "help.admin");
         }
     }
 }
-

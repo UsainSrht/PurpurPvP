@@ -6,13 +6,13 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.usainsrht.purpurpvp.PurpurPvP;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.entity.Player;
 
 /**
  * /queue <mode> — Join matchmaking queue.
  * /queue leave  — Leave current queue.
+ * Fully localized with YamlMessageAPI.
  */
 @SuppressWarnings("UnstableApiUsage")
 public class QueueCommand {
@@ -28,8 +28,8 @@ public class QueueCommand {
                 .requires(src -> src.getSender().hasPermission("purpurpvp.queue"))
                 .executes(ctx -> {
                     if (ctx.getSource().getSender() instanceof Player player) {
-                        player.sendMessage(Component.text("Usage: /queue <mode> | /queue leave", NamedTextColor.YELLOW));
-                        player.sendMessage(Component.text("Modes: " + String.join(", ", plugin.getQueueManager().getAvailableModes()), NamedTextColor.GRAY));
+                        plugin.getMessageService().send(player, "error.invalid-args",
+                                Placeholder.parsed("usage", "/queue <mode> | /queue leave (Modes: " + String.join(", ", plugin.getQueueManager().getAvailableModes()) + ")"));
                     }
                     return Command.SINGLE_SUCCESS;
                 })
@@ -37,7 +37,7 @@ public class QueueCommand {
                         .executes(ctx -> {
                             if (ctx.getSource().getSender() instanceof Player player) {
                                 if (!plugin.getQueueManager().isInQueue(player.getUniqueId())) {
-                                    player.sendMessage(Component.text("Not in a queue!", NamedTextColor.RED));
+                                    plugin.getMessageService().send(player, "queue.left");
                                 } else {
                                     plugin.getQueueManager().leaveQueue(player.getUniqueId());
                                 }
@@ -53,11 +53,12 @@ public class QueueCommand {
                             if (ctx.getSource().getSender() instanceof Player player) {
                                 String mode = StringArgumentType.getString(ctx, "mode");
                                 if (!plugin.getQueueManager().getAvailableModes().contains(mode)) {
-                                    player.sendMessage(Component.text("Invalid mode!", NamedTextColor.RED));
+                                    plugin.getMessageService().send(player, "queue.invalid-mode",
+                                            Placeholder.parsed("modes", String.join(", ", plugin.getQueueManager().getAvailableModes())));
                                     return Command.SINGLE_SUCCESS;
                                 }
                                 if (plugin.getQueueManager().isInQueue(player.getUniqueId())) {
-                                    player.sendMessage(Component.text("Already in queue! /queue leave first.", NamedTextColor.RED));
+                                    plugin.getMessageService().send(player, "queue.already-in-queue");
                                     return Command.SINGLE_SUCCESS;
                                 }
                                 plugin.getQueueManager().joinQueue(player.getUniqueId(), mode);
@@ -67,4 +68,3 @@ public class QueueCommand {
                 .build();
     }
 }
-

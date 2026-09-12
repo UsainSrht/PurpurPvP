@@ -52,13 +52,13 @@ public class RoomSignManager implements Listener {
                 .plainText().serialize(event.line(0));
         if (firstLine.equalsIgnoreCase("[PvP]")) {
             if (!event.getPlayer().hasPermission("purpurpvp.admin.sign")) {
-                event.getPlayer().sendMessage(Component.text("No permission to create PvP signs!", NamedTextColor.RED));
+                plugin.getMessageService().send(event.getPlayer(), "sign.no-permission");
                 return;
             }
             Location loc = event.getBlock().getLocation();
             roomSigns.add(loc);
             saveSigns();
-            event.getPlayer().sendMessage(Component.text("PvP room sign created!", NamedTextColor.GREEN));
+            plugin.getMessageService().send(event.getPlayer(), "sign.created");
             updateSign(loc);
         }
     }
@@ -101,10 +101,12 @@ public class RoomSignManager implements Listener {
             activePlayers += match.getAllPlayerUUIDs().size();
         }
 
-        sign.getSide(Side.FRONT).line(0, Component.text("[PurpurPvP]", NamedTextColor.DARK_PURPLE));
-        sign.getSide(Side.FRONT).line(1, Component.text("Click to Play!", NamedTextColor.GREEN));
-        sign.getSide(Side.FRONT).line(2, Component.text("Rooms: " + openRooms, NamedTextColor.GOLD));
-        sign.getSide(Side.FRONT).line(3, Component.text("Fighting: " + activePlayers, NamedTextColor.AQUA));
+        sign.getSide(Side.FRONT).line(0, plugin.getMessageService().toComponent("sign.line-1"));
+        sign.getSide(Side.FRONT).line(1, plugin.getMessageService().toComponent("sign.line-2"));
+        sign.getSide(Side.FRONT).line(2, plugin.getMessageService().toComponent("sign.line-3",
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("rooms", String.valueOf(openRooms))));
+        sign.getSide(Side.FRONT).line(3, plugin.getMessageService().toComponent("sign.line-4",
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("players", String.valueOf(activePlayers))));
         sign.update(true);
     }
 

@@ -64,21 +64,27 @@ public class ScoreboardManager {
 
         List<Component> lines = new ArrayList<>();
         lines.add(Component.empty());
-        lines.add(Component.text("Online: ", NamedTextColor.GRAY).append(Component.text(online, NamedTextColor.WHITE)));
-        lines.add(Component.text("Matches: ", NamedTextColor.GRAY).append(Component.text(matches, NamedTextColor.WHITE)));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.lobby.online",
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("online", String.valueOf(online))));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.lobby.matches",
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("matches", String.valueOf(matches))));
         lines.add(Component.empty());
         if (profile != null) {
-            lines.add(Component.text("Level: ", NamedTextColor.GRAY).append(Component.text(profile.getLevel(), NamedTextColor.GREEN)));
-            lines.add(Component.text("Elo: ", NamedTextColor.GRAY).append(Component.text(String.format("%.0f", profile.getEloRating()), NamedTextColor.YELLOW)));
-            lines.add(Component.text("K/D: ", NamedTextColor.GRAY).append(Component.text(
-                    profile.getKills() + "/" + profile.getDeaths(), NamedTextColor.AQUA)));
-            lines.add(Component.text("W/L: ", NamedTextColor.GRAY).append(Component.text(
-                    profile.getWins() + "/" + profile.getLosses(), NamedTextColor.GREEN)));
+            lines.add(plugin.getMessageService().toComponent("scoreboard.lobby.level",
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("level", String.valueOf(profile.getLevel()))));
+            lines.add(plugin.getMessageService().toComponent("scoreboard.lobby.elo",
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("elo", String.format("%.0f", profile.getEloRating()))));
+            lines.add(plugin.getMessageService().toComponent("scoreboard.lobby.kd",
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("kills", String.valueOf(profile.getKills())),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("deaths", String.valueOf(profile.getDeaths()))));
+            lines.add(plugin.getMessageService().toComponent("scoreboard.lobby.wl",
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("wins", String.valueOf(profile.getWins())),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("losses", String.valueOf(profile.getLosses()))));
         }
         lines.add(Component.empty());
-        lines.add(Component.text("purpurpvp.com", NamedTextColor.DARK_PURPLE));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.footer"));
 
-        applyBoard(player, Component.text(" PURPURPVP ", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD), lines);
+        applyBoard(player, plugin.getMessageService().toComponent("scoreboard.title.lobby"), lines);
     }
 
     // ===== Queue =====
@@ -86,11 +92,11 @@ public class ScoreboardManager {
     private void setQueueBoard(Player player) {
         List<Component> lines = new ArrayList<>();
         lines.add(Component.empty());
-        lines.add(Component.text("Status: ", NamedTextColor.GRAY).append(Component.text("Searching...", NamedTextColor.YELLOW)));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.queue.searching"));
         lines.add(Component.empty());
-        lines.add(Component.text("purpurpvp.com", NamedTextColor.DARK_PURPLE));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.footer"));
 
-        applyBoard(player, Component.text(" QUEUE ", NamedTextColor.GOLD, TextDecoration.BOLD), lines);
+        applyBoard(player, plugin.getMessageService().toComponent("scoreboard.title.queue"), lines);
     }
 
     // ===== Duel =====
@@ -101,37 +107,43 @@ public class ScoreboardManager {
 
         // Round info
         int roundsToWin = match.rules().getRoundsToWin();
-        lines.add(Component.text("Round: ", NamedTextColor.GRAY).append(
-                Component.text(match.getCurrentRound() + "/" + match.getConfig().getBestOf(), NamedTextColor.WHITE)));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.duel.round",
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("current", String.valueOf(match.getCurrentRound())),
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("max", String.valueOf(match.getConfig().getBestOf()))));
 
         // Score
         for (Team team : match.getTeams()) {
-            NamedTextColor color = team.getMembers().contains(player.getUniqueId()) ? NamedTextColor.GREEN : NamedTextColor.RED;
-            lines.add(Component.text(team.getName() + ": ", color)
-                    .append(Component.text(team.getRoundWins() + "/" + roundsToWin, NamedTextColor.WHITE)));
+            String color = team.getMembers().contains(player.getUniqueId()) ? "<green>" : "<red>";
+            lines.add(plugin.getMessageService().toComponent("scoreboard.duel.team-score",
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("color", color),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("team", team.getName()),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("wins", String.valueOf(team.getRoundWins())),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("max", String.valueOf(roundsToWin))));
         }
 
         lines.add(Component.empty());
 
         // Kills
         int myKills = match.getKillCounts().getOrDefault(player.getUniqueId(), 0);
-        lines.add(Component.text("Your Kills: ", NamedTextColor.GRAY).append(Component.text(myKills, NamedTextColor.WHITE)));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.duel.kills",
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("kills", String.valueOf(myKills))));
 
         // Kit
         if (match.getConfig().getKit() != null) {
-            lines.add(Component.text("Kit: ", NamedTextColor.GRAY).append(
-                    Component.text(match.getConfig().getKit().getName(), NamedTextColor.GOLD)));
+            lines.add(plugin.getMessageService().toComponent("scoreboard.duel.kit",
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("kit", match.getConfig().getKit().getName())));
         }
 
         // State
-        NamedTextColor stateColor = match.getState() == MatchState.ACTIVE ? NamedTextColor.GREEN : NamedTextColor.YELLOW;
-        lines.add(Component.text("State: ", NamedTextColor.GRAY).append(
-                Component.text(match.getState().name(), stateColor)));
+        String stateColor = match.getState() == MatchState.ACTIVE ? "<green>" : "<yellow>";
+        lines.add(plugin.getMessageService().toComponent("scoreboard.duel.state",
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("color", stateColor),
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("state", match.getState().name())));
 
         lines.add(Component.empty());
-        lines.add(Component.text("purpurpvp.com", NamedTextColor.DARK_PURPLE));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.footer"));
 
-        applyBoard(player, Component.text(" DUEL ", NamedTextColor.RED, TextDecoration.BOLD), lines);
+        applyBoard(player, plugin.getMessageService().toComponent("scoreboard.title.duel"), lines);
     }
 
     // ===== FFA =====
@@ -142,30 +154,33 @@ public class ScoreboardManager {
 
         // Alive count
         long alive = match.getTeams().stream().filter(Team::hasAlivePlayers).count();
-        lines.add(Component.text("Alive: ", NamedTextColor.GRAY).append(Component.text(alive, NamedTextColor.GREEN)));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.ffa.alive",
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("alive", String.valueOf(alive))));
 
         // My kills
         int myKills = match.getKillCounts().getOrDefault(player.getUniqueId(), 0);
-        lines.add(Component.text("Your Kills: ", NamedTextColor.GRAY).append(Component.text(myKills, NamedTextColor.WHITE)));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.ffa.kills",
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("kills", String.valueOf(myKills))));
 
         lines.add(Component.empty());
 
         // Top 3 killers
-        lines.add(Component.text("Top Killers:", NamedTextColor.GOLD));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.ffa.top-header"));
         match.getKillCounts().entrySet().stream()
                 .sorted(Map.Entry.<UUID, Integer>comparingByValue().reversed())
                 .limit(3)
                 .forEach(entry -> {
                     Player p = Bukkit.getPlayer(entry.getKey());
                     String name = p != null ? p.getName() : "???";
-                    lines.add(Component.text(" " + name + ": ", NamedTextColor.GRAY)
-                            .append(Component.text(entry.getValue(), NamedTextColor.WHITE)));
+                    lines.add(plugin.getMessageService().toComponent("scoreboard.ffa.top-entry",
+                            net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("player", name),
+                            net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("kills", String.valueOf(entry.getValue()))));
                 });
 
         lines.add(Component.empty());
-        lines.add(Component.text("purpurpvp.com", NamedTextColor.DARK_PURPLE));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.footer"));
 
-        applyBoard(player, Component.text(" FFA ", NamedTextColor.GOLD, TextDecoration.BOLD), lines);
+        applyBoard(player, plugin.getMessageService().toComponent("scoreboard.title.ffa"), lines);
     }
 
     // ===== Spectator =====
@@ -173,23 +188,26 @@ public class ScoreboardManager {
     private void setSpectatorBoard(Player player, Match match) {
         List<Component> lines = new ArrayList<>();
         lines.add(Component.empty());
-        lines.add(Component.text("Spectating", NamedTextColor.GRAY));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.spectator.spectating"));
 
         // Round
-        lines.add(Component.text("Round: ", NamedTextColor.GRAY).append(
-                Component.text(match.getCurrentRound() + "/" + match.getConfig().getBestOf(), NamedTextColor.WHITE)));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.spectator.round",
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("current", String.valueOf(match.getCurrentRound())),
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("max", String.valueOf(match.getConfig().getBestOf()))));
 
         // Teams
         for (Team team : match.getTeams()) {
             boolean alive = team.hasAlivePlayers();
-            lines.add(Component.text(team.getName() + ": ", alive ? NamedTextColor.GREEN : NamedTextColor.RED)
-                    .append(Component.text(team.getRoundWins() + " wins", NamedTextColor.WHITE)));
+            lines.add(plugin.getMessageService().toComponent("scoreboard.spectator.team-status",
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("color", alive ? "<green>" : "<red>"),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("team", team.getName()),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("wins", String.valueOf(team.getRoundWins()))));
         }
 
         lines.add(Component.empty());
-        lines.add(Component.text("purpurpvp.com", NamedTextColor.DARK_PURPLE));
+        lines.add(plugin.getMessageService().toComponent("scoreboard.footer"));
 
-        applyBoard(player, Component.text(" SPECTATE ", NamedTextColor.GRAY, TextDecoration.BOLD), lines);
+        applyBoard(player, plugin.getMessageService().toComponent("scoreboard.title.spectator"), lines);
     }
 
     // ===== Core Board Builder =====

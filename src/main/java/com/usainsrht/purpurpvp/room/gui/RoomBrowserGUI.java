@@ -62,9 +62,10 @@ public class RoomBrowserGUI {
                                     p.closeInventory();
                                     boolean joined = plugin.getRoomManager().joinRoom(p.getUniqueId(), room.getRoomId());
                                     if (!joined) {
-                                        p.sendMessage(Component.text("Could not join the room!", NamedTextColor.RED));
+                                        plugin.getMessageService().send(p, "room.full");
                                     } else {
-                                        p.sendMessage(Component.text("You joined " + hostName + "'s room!", NamedTextColor.GREEN));
+                                        plugin.getMessageService().send(p, "room.joined",
+                                                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("player", hostName));
                                     }
                                 }));
 
@@ -79,10 +80,10 @@ public class RoomBrowserGUI {
                                 p.closeInventory();
                                 Room newRoom = plugin.getRoomManager().createRoom(p.getUniqueId());
                                 if (newRoom != null) {
-                                    p.sendMessage(Component.text("Room created! You are the host.", NamedTextColor.GREEN));
+                                    plugin.getMessageService().send(p, "room.created");
                                     plugin.getRoomCreationGUI().open(p, newRoom);
                                 } else {
-                                    p.sendMessage(Component.text("Could not create room! You may be in a match or room already.", NamedTextColor.RED));
+                                    plugin.getMessageService().send(p, "error.already-in-match");
                                 }
                             }));
 

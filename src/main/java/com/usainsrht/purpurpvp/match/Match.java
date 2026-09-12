@@ -79,17 +79,7 @@ public class Match {
         int secondsLeft = countdownTicks / 20;
 
         if (countdownTicks % 20 == 0 && secondsLeft > 0 && secondsLeft <= 5) {
-            broadcastAll(Component.text("Match starts in " + secondsLeft + "...", NamedTextColor.YELLOW));
-            for (UUID uuid : getAllPlayerUUIDs()) {
-                Player p = Bukkit.getPlayer(uuid);
-                if (p != null) {
-                    p.showTitle(Title.title(
-                            Component.text(String.valueOf(secondsLeft), NamedTextColor.GOLD),
-                            Component.empty(),
-                            Title.Times.times(Duration.ZERO, Duration.ofMillis(800), Duration.ofMillis(200))
-                    ));
-                }
-            }
+            broadcastMessage("match.countdown", net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("seconds", String.valueOf(secondsLeft)));
         }
 
         if (countdownTicks <= 0) {
@@ -130,17 +120,7 @@ public class Match {
 
         freezePlayers(false);
 
-        broadcastAll(Component.text("Round " + currentRound + " - FIGHT!", NamedTextColor.GREEN));
-        for (UUID uuid : getAllPlayerUUIDs()) {
-            Player p = Bukkit.getPlayer(uuid);
-            if (p != null) {
-                p.showTitle(Title.title(
-                        Component.text("FIGHT!", NamedTextColor.RED),
-                        Component.text("Round " + currentRound, NamedTextColor.GRAY),
-                        Title.Times.times(Duration.ZERO, Duration.ofSeconds(1), Duration.ofMillis(500))
-                ));
-            }
-        }
+        broadcastMessage("match.started", net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("round", String.valueOf(currentRound)));
 
         // Apply game rules
         applyGameRules();
@@ -169,10 +149,7 @@ public class Match {
             spectators.add(deadPlayer);
         }
 
-        broadcastAll(Component.text(
-                (dead != null ? dead.getName() : "A player") + " has been eliminated!",
-                NamedTextColor.RED
-        ));
+        broadcastMessage("match.eliminated", net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("player", dead != null ? dead.getName() : "A player"));
 
         checkRoundEnd();
     }
@@ -203,11 +180,12 @@ public class Match {
 
         if (winner != null) {
             winner.incrementRoundWins();
-            broadcastAll(Component.text(
-                    "Round " + currentRound + " won by " + winner.getName() + "! " +
-                            getRoundScore(), NamedTextColor.GOLD));
+            broadcastMessage("match.round-win",
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("round", String.valueOf(currentRound)),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("team", winner.getName()),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("score", getRoundScore()));
         } else {
-            broadcastAll(Component.text("Round " + currentRound + " was a draw!", NamedTextColor.YELLOW));
+            broadcastMessage("match.draw", net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("round", String.valueOf(currentRound)));
         }
 
         // Check match win
@@ -250,27 +228,37 @@ public class Match {
         }
 
         if (winner != null) {
-            broadcastAll(Component.text("Match won by " + winner.getName() + "!", NamedTextColor.GOLD));
-            for (UUID uuid : getAllPlayerUUIDs()) {
-                Player p = Bukkit.getPlayer(uuid);
-                if (p != null) {
-                    p.showTitle(Title.title(
-                            Component.text(winner.getName() + " WINS!", NamedTextColor.GOLD),
-                            Component.text("Final Score: " + getRoundScore(), NamedTextColor.GRAY),
-                            Title.Times.times(Duration.ZERO, Duration.ofSeconds(3), Duration.ofSeconds(1))
-                    ));
-                }
-            }
+            broadcastMessage("match.match-win",
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("team", winner.getName()),
+                    net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("score", getRoundScore()));
         }
 
-        // Notify match manager to handle cleanup, XP, Elo, etc.
-        Bukkit.getScheduler().runTaskLater(plugin,
-                () -> plugin.getMatchManager().endMatch(this, winner), 80L);
+        // Notify match manager immediately to handle cleanup, XP, Elo, post-match summary
+        plugin.getMatchManager().endMatch(this, winner);
     }
 
     // ===== Helpers =====
 
     private void teleportToSpawns() {
+        if (config.getArenaInstance() != null) {
+            var instance = config.getArenaInstance();
+            for (Team team : teams) {
+                List<Location> spawns = team.getIndex() < instance.getTeamSpawns().size()
+                        ? instance.getTeamSpawns().get(team.getIndex())
+                        : Collections.emptyList();
+
+                int spawnIdx = 0;
+                for (UUID uuid : team.getMembers()) {
+                    Player p = Bukkit.getPlayer(uuid);
+                    if (p != null && !spawns.isEmpty()) {
+                        p.teleport(spawns.get(spawnIdx % spawns.size()));
+                        spawnIdx++;
+                    }
+                }
+            }
+            return;
+        }
+
         Arena arena = config.getArena();
         if (arena == null) return;
 
@@ -323,7 +311,9 @@ public class Match {
 
         // Find the match world
         World world = null;
-        if (arena != null && arena.getWorld() != null) {
+        if (config.getArenaInstance() != null) {
+            world = config.getArenaInstance().getOrigin().getWorld();
+        } else if (arena != null && arena.getWorld() != null) {
             world = Bukkit.getWorld(arena.getWorld());
         }
 
@@ -365,18 +355,31 @@ public class Match {
         // World border
         if (rules.isWorldBorderEnabled() && world != null) {
             WorldBorder border = world.getWorldBorder();
-            Location center = arena.getWorldBorderCenter() != null
-                    ? arena.getWorldBorderCenter()
-                    : (arena.getSpectatorSpawn() != null ? arena.getSpectatorSpawn() : arena.getTeamSpawns().getFirst().getFirst());
+            Location center;
+            double initialSize;
+
+            if (config.getArenaInstance() != null) {
+                center = config.getArenaInstance().getWorldBorderCenter();
+                initialSize = config.getArenaInstance().getTemplate().getWorldBorderInitialSize();
+            } else if (arena != null) {
+                center = arena.getWorldBorderCenter() != null
+                        ? arena.getWorldBorderCenter()
+                        : (arena.getSpectatorSpawn() != null ? arena.getSpectatorSpawn() : arena.getTeamSpawns().getFirst().getFirst());
+                initialSize = arena.getWorldBorderInitialSize();
+            } else {
+                center = world.getSpawnLocation();
+                initialSize = 60.0;
+            }
+
             border.setCenter(center);
-            border.setSize(arena.getWorldBorderInitialSize());
+            border.setSize(initialSize);
             border.setDamageAmount(rules.getWorldBorderDamage());
             border.setDamageBuffer(0);
 
             // Schedule border close
             int closeAfterTicks = rules.getWorldBorderCloseAfterSeconds() * 20;
             worldBorderTask = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                long shrinkTimeSeconds = (long) (arena.getWorldBorderInitialSize() / rules.getWorldBorderCloseSpeed());
+                broadcastMessage("match.border-shrinking");
                 border.setSize(1);
                 // Use the time-based overload through scheduling progressive shrinking
                 Bukkit.getScheduler().runTaskTimer(plugin, task -> {
@@ -412,6 +415,9 @@ public class Match {
      * Track a block change for map reset.
      */
     public void trackBlockChange(Location loc, Material originalType) {
+        if (config.getArenaInstance() != null) {
+            config.getArenaInstance().trackBlockChange(loc, originalType);
+        }
         if (!originalBlocks.containsKey(loc)) {
             originalBlocks.put(loc.clone(), originalType);
         }
@@ -422,6 +428,9 @@ public class Match {
      * Reset all changed blocks to their original state.
      */
     private void resetMap() {
+        if (config.getArenaInstance() != null) {
+            config.getArenaInstance().cleanAndReset();
+        }
         for (Map.Entry<Location, Material> entry : originalBlocks.entrySet()) {
             entry.getKey().getBlock().setType(entry.getValue());
         }
@@ -444,6 +453,17 @@ public class Match {
         for (UUID uuid : spectators) {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) p.sendMessage(message);
+        }
+    }
+
+    public void broadcastMessage(String key, net.kyori.adventure.text.minimessage.tag.resolver.TagResolver... tags) {
+        for (UUID uuid : getAllPlayerUUIDs()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) plugin.getMessageService().send(p, key, tags);
+        }
+        for (UUID uuid : spectators) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) plugin.getMessageService().send(p, key, tags);
         }
     }
 
@@ -491,7 +511,8 @@ public class Match {
         Player p = Bukkit.getPlayer(uuid);
         if (p != null) {
             p.setGameMode(GameMode.SPECTATOR);
-            Location specSpawn = config.getArena() != null ? config.getArena().getSpectatorSpawn() : null;
+            Location specSpawn = config.getArenaInstance() != null ? config.getArenaInstance().getSpectatorSpawn()
+                    : (config.getArena() != null ? config.getArena().getSpectatorSpawn() : null);
             if (specSpawn != null) p.teleport(specSpawn);
         }
     }

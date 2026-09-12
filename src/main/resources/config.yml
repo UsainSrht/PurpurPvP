@@ -13,6 +13,11 @@ match:
   countdown-seconds: 5
   max-room-idle-seconds: 300
 
+arena:
+  world: "purpurpvp_arenas"
+  grid-spacing: 300
+  initial-pool-size: 5
+
 xp:
   per-kill: 25
   per-round-win: 50
@@ -31,3 +36,47 @@ game-rules:
   allow-hunger: false
   natural-regen: false
 
+# Lobby Hotbar Items (Parsed with YamlItem from ItemAPI)
+lobby-items:
+  enabled: true
+  items:
+    queue:
+      slot: 0
+      action: "QUEUE"
+      item:
+        material: DIAMOND_SWORD
+        name: "<green><bold>Play / Matchmaking</bold></green>"
+        lore:
+          - "<gray>Click to join matchmaking queues</gray>"
+    rooms:
+      slot: 1
+      action: "ROOMS"
+      item:
+        material: COMPASS
+        name: "<aqua><bold>Custom Rooms</bold></aqua>"
+        lore:
+          - "<gray>Click to browse or create custom duel rooms</gray>"
+    kiteditor:
+      slot: 4
+      action: "KITEDITOR"
+      item:
+        material: ANVIL
+        name: "<yellow><bold>Kit Editor</bold></yellow>"
+        lore:
+          - "<gray>Click to create and preview custom kits</gray>"
+    leaderboard:
+      slot: 7
+      action: "LEADERBOARD"
+      item:
+        material: NETHER_STAR
+        name: "<gold><bold>Leaderboard & Stats</bold></gold>"
+        lore:
+          - "<gray>Click to view rankings and player stats</gray>"
+    party:
+      slot: 8
+      action: "PARTY"
+      item:
+        material: BOOK
+        name: "<light_purple><bold>Party Management</bold></light_purple>"
+        lore:
+          - "<gray>Click to manage your party</gray>"

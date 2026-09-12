@@ -182,7 +182,7 @@ public class MatchListener implements Listener {
                 if (match.getCooldowns().isOnCooldown(player.getUniqueId(), "shield")) {
                     event.setCancelled(true);
                     long remaining = match.getCooldowns().getRemainingMillis(player.getUniqueId(), "shield");
-                    player.sendActionBar(Component.text("Shield on cooldown: " + (remaining / 1000 + 1) + "s", NamedTextColor.RED));
+                    plugin.getMessageService().send(player, "match.shield-cooldown", net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("seconds", String.valueOf(remaining / 1000 + 1)));
                     return;
                 }
                 match.getCooldowns().setCooldown(player.getUniqueId(), "shield", rules.getShieldCooldownSeconds() * 1000L);
@@ -199,7 +199,7 @@ public class MatchListener implements Listener {
                 if (match.getCooldowns().isOnCooldown(player.getUniqueId(), "enderpearl")) {
                     event.setCancelled(true);
                     long remaining = match.getCooldowns().getRemainingMillis(player.getUniqueId(), "enderpearl");
-                    player.sendActionBar(Component.text("Pearl on cooldown: " + (remaining / 1000 + 1) + "s", NamedTextColor.RED));
+                    plugin.getMessageService().send(player, "match.pearl-cooldown", net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("seconds", String.valueOf(remaining / 1000 + 1)));
                     return;
                 }
                 match.getCooldowns().setCooldown(player.getUniqueId(), "enderpearl", rules.getEnderPearlCooldownSeconds() * 1000L);
@@ -216,7 +216,7 @@ public class MatchListener implements Listener {
                 if (match.getCooldowns().isOnCooldown(player.getUniqueId(), "trident")) {
                     event.setCancelled(true);
                     long remaining = match.getCooldowns().getRemainingMillis(player.getUniqueId(), "trident");
-                    player.sendActionBar(Component.text("Trident on cooldown: " + (remaining / 1000 + 1) + "s", NamedTextColor.RED));
+                    plugin.getMessageService().send(player, "match.trident-cooldown", net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("seconds", String.valueOf(remaining / 1000 + 1)));
                     return;
                 }
                 match.getCooldowns().setCooldown(player.getUniqueId(), "trident", rules.getTridentRiptideCooldownSeconds() * 1000L);

@@ -75,7 +75,8 @@ public class KitEditorGUI {
                                 .asGuiItem((p, ctx) -> {
                                     if (ctx.guiClick() == GuiClick.RIGHT) {
                                         kitManager.deletePlayerKit(p.getUniqueId(), kit.getName());
-                                        p.sendMessage(Component.text("Kit deleted: " + kit.getName(), NamedTextColor.RED));
+                                        plugin.getMessageService().send(p, "kit.deleted",
+                                                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("name", kit.getName()));
                                         openKitList(p);
                                     } else {
                                         openKitPreview(p, kit);
@@ -93,7 +94,8 @@ public class KitEditorGUI {
                                 plugin.getKitNameListener().waitForInput(p, name -> {
                                     Kit newKit = kitManager.createFromInventory(p, name);
                                     kitManager.savePlayerKit(p.getUniqueId(), newKit);
-                                    p.sendMessage(Component.text("Kit saved: " + name, NamedTextColor.GREEN));
+                                    plugin.getMessageService().send(p, "kit.saved",
+                                            net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("name", name));
                                 });
                             }));
                 })

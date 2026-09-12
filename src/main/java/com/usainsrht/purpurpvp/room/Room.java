@@ -55,17 +55,25 @@ public class Room {
     public boolean addPlayer(UUID uuid) {
         if (isFull() || players.contains(uuid)) return false;
         players.add(uuid);
-        broadcastToRoom(Component.text(getPlayerName(uuid) + " joined the room.", NamedTextColor.GREEN));
+        broadcastMessage("room.joined", net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("player", getPlayerName(uuid)));
         return true;
     }
 
     public void removePlayer(UUID uuid) {
         players.remove(uuid);
-        broadcastToRoom(Component.text(getPlayerName(uuid) + " left the room.", NamedTextColor.YELLOW));
+        broadcastMessage("room.left", net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("player", getPlayerName(uuid)));
     }
 
     public boolean isHost(UUID uuid) {
         return hostUuid.equals(uuid);
+    }
+
+    public void broadcastMessage(String key, net.kyori.adventure.text.minimessage.tag.resolver.TagResolver... tags) {
+        com.usainsrht.purpurpvp.PurpurPvP plugin = org.bukkit.plugin.java.JavaPlugin.getPlugin(com.usainsrht.purpurpvp.PurpurPvP.class);
+        for (UUID uuid : players) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) plugin.getMessageService().send(p, key, tags);
+        }
     }
 
     public void broadcastToRoom(Component message) {

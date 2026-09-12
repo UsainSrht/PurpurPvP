@@ -11,18 +11,20 @@ import com.usainsrht.purpurpvp.match.team.Team;
 import com.usainsrht.purpurpvp.match.team.TeamAllocator;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
+import me.usainsrht.itemapi.itemtext.ItemText;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.*;
 
 /**
  * /duel <player> [kit] — Challenge a player or open room browser.
  * /duel accept / decline — Respond to pending requests.
+ * Fully localized with YamlMessageAPI and ItemAPI.
  */
 @SuppressWarnings("UnstableApiUsage")
 public class DuelCommand {
@@ -95,42 +97,61 @@ public class DuelCommand {
 
     private void sendDuelRequest(Player player, String targetName, Kit kit) {
         Player target = Bukkit.getPlayerExact(targetName);
-        if (target == null) { player.sendMessage(Component.text("Player not found!", NamedTextColor.RED)); return; }
-        if (target.equals(player)) { player.sendMessage(Component.text("You can't duel yourself!", NamedTextColor.RED)); return; }
-        if (plugin.getMatchManager().isInMatch(player.getUniqueId())) { player.sendMessage(Component.text("You are already in a match!", NamedTextColor.RED)); return; }
-        if (plugin.getMatchManager().isInMatch(target.getUniqueId())) { player.sendMessage(Component.text(target.getName() + " is in a match!", NamedTextColor.RED)); return; }
+        if (target == null) {
+            plugin.getMessageService().send(player, "error.player-not-found");
+            return;
+        }
+        if (target.equals(player)) {
+            plugin.getMessageService().send(player, "duel.cannot-duel-self");
+            return;
+        }
+        if (plugin.getMatchManager().isInMatch(player.getUniqueId())) {
+            plugin.getMessageService().send(player, "duel.already-in-match");
+            return;
+        }
+        if (plugin.getMatchManager().isInMatch(target.getUniqueId())) {
+            plugin.getMessageService().send(player, "duel.target-in-match", Placeholder.parsed("player", target.getName()));
+            return;
+        }
 
-        // kit may be null — will prompt on accept
         DuelRequest request = new DuelRequest(player.getUniqueId(), target.getUniqueId(), kit);
         pendingRequests.put(target.getUniqueId(), request);
 
-        player.sendMessage(Component.text("Duel request sent to ", NamedTextColor.GREEN)
-                .append(Component.text(target.getName(), NamedTextColor.YELLOW)));
+        ItemStack icon = kit != null && kit.getIcon() != null ? kit.getIcon() : new ItemStack(Material.IRON_SWORD);
+        Component kitComp = ItemText.format(icon);
+        String kitName = kit != null ? kit.getName() : "Selected by Opponent";
 
-        target.sendMessage(Component.text(player.getName(), NamedTextColor.YELLOW)
-                .append(Component.text(" wants to duel! ", NamedTextColor.GREEN))
-                .append(Component.text("[ACCEPT]", NamedTextColor.GREEN, TextDecoration.BOLD)
-                        .clickEvent(ClickEvent.runCommand("/duel accept")))
-                .append(Component.text(" "))
-                .append(Component.text("[DECLINE]", NamedTextColor.RED, TextDecoration.BOLD)
-                        .clickEvent(ClickEvent.runCommand("/duel decline"))));
+        plugin.getMessageService().send(player, "duel.request-sent",
+                Placeholder.parsed("player", target.getName()),
+                Placeholder.component("kit", kitComp));
 
-        // Expire
+        plugin.getMessageService().send(target, "duel.request-received",
+                Placeholder.parsed("player", player.getName()),
+                Placeholder.component("kit", kitComp),
+                Placeholder.parsed("arena", "Dynamic Arena"));
+
+        // Expire after 30 seconds
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             DuelRequest pending = pendingRequests.get(target.getUniqueId());
             if (pending != null && pending.equals(request)) {
                 pendingRequests.remove(target.getUniqueId());
                 Player s = Bukkit.getPlayer(request.sender);
-                if (s != null) s.sendMessage(Component.text("Duel request expired.", NamedTextColor.RED));
+                if (s != null) plugin.getMessageService().send(s, "duel.request-expired", Placeholder.parsed("player", target.getName()));
             }
         }, 600L);
     }
 
     private void acceptDuel(Player player) {
         DuelRequest request = pendingRequests.remove(player.getUniqueId());
-        if (request == null) { player.sendMessage(Component.text("No pending duel!", NamedTextColor.RED)); return; }
+        if (request == null) {
+            plugin.getMessageService().send(player, "duel.request-expired", Placeholder.parsed("player", "Duel"));
+            return;
+        }
         Player challenger = Bukkit.getPlayer(request.sender);
-        if (challenger == null) { player.sendMessage(Component.text("Challenger offline!", NamedTextColor.RED)); return; }
+        if (challenger == null) {
+            plugin.getMessageService().send(player, "error.player-not-found");
+            return;
+        }
 
         if (request.kit != null) {
             startDuel(challenger, player, request.kit);
@@ -139,34 +160,29 @@ public class DuelCommand {
         }
     }
 
+    private void declineDuel(Player player) {
+        DuelRequest request = pendingRequests.remove(player.getUniqueId());
+        if (request != null) {
+            plugin.getMessageService().send(player, "duel.declined");
+            Player challenger = Bukkit.getPlayer(request.sender);
+            if (challenger != null) {
+                plugin.getMessageService().send(challenger, "duel.declined");
+            }
+        }
+    }
+
     private void startDuel(Player p1, Player p2, Kit kit) {
+        plugin.getMessageService().send(p1, "duel.accepted");
+        plugin.getMessageService().send(p2, "duel.accepted");
+
         MatchConfig config = new MatchConfig();
         config.setKit(kit);
         config.setTeamSize(1);
         config.setTeamCount(2);
 
-        Arena arena = plugin.getArenaManager().getAvailableArena(2);
-        if (arena == null) {
-            p1.sendMessage(Component.text("No arena available!", NamedTextColor.RED));
-            p2.sendMessage(Component.text("No arena available!", NamedTextColor.RED));
-            return;
-        }
-        config.setArena(arena);
-
-        List<Team> teams = TeamAllocator.allocateDuel(p1.getUniqueId(), p2.getUniqueId());
+        List<Team> teams = TeamAllocator.allocateRandom(List.of(p1.getUniqueId(), p2.getUniqueId()), 2, 1);
         plugin.getMatchManager().createMatch(config, teams);
-        p1.sendMessage(Component.text("Duel starting!", NamedTextColor.GREEN));
-        p2.sendMessage(Component.text("Duel starting!", NamedTextColor.GREEN));
     }
 
-    private void declineDuel(Player player) {
-        DuelRequest request = pendingRequests.remove(player.getUniqueId());
-        if (request == null) { player.sendMessage(Component.text("No pending duel!", NamedTextColor.RED)); return; }
-        player.sendMessage(Component.text("Duel declined.", NamedTextColor.RED));
-        Player challenger = Bukkit.getPlayer(request.sender);
-        if (challenger != null) challenger.sendMessage(Component.text(player.getName() + " declined.", NamedTextColor.RED));
-    }
-
-    private record DuelRequest(UUID sender, UUID receiver, Kit kit) {}
+    private record DuelRequest(UUID sender, UUID target, Kit kit) {}
 }
-

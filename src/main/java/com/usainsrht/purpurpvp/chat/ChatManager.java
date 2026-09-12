@@ -64,24 +64,18 @@ public class ChatManager implements Listener {
 
     private Component formatMessage(Player sender, String message, ChatScope scope) {
         PlayerProfile profile = plugin.getRankManager().getProfile(sender.getUniqueId());
-        String levelPrefix = profile != null ? "[Lv." + profile.getLevel() + "] " : "";
+        String level = profile != null ? String.valueOf(profile.getLevel()) : "1";
 
-        return switch (scope) {
-            case LOBBY -> Component.text("[Lobby] ", NamedTextColor.GRAY)
-                    .append(Component.text(levelPrefix, NamedTextColor.GOLD))
-                    .append(Component.text(sender.getName(), NamedTextColor.WHITE))
-                    .append(Component.text(": " + message, NamedTextColor.WHITE));
-            case MATCH -> Component.text("[Match] ", NamedTextColor.AQUA)
-                    .append(Component.text(levelPrefix, NamedTextColor.GOLD))
-                    .append(Component.text(sender.getName(), NamedTextColor.WHITE))
-                    .append(Component.text(": " + message, NamedTextColor.WHITE));
-            case SPECTATOR -> Component.text("[Spectator] ", NamedTextColor.GRAY)
-                    .append(Component.text(sender.getName(), NamedTextColor.GRAY))
-                    .append(Component.text(": " + message, NamedTextColor.GRAY));
-            case GLOBAL -> Component.text(levelPrefix, NamedTextColor.GOLD)
-                    .append(Component.text(sender.getName(), NamedTextColor.WHITE))
-                    .append(Component.text(": " + message, NamedTextColor.WHITE));
+        String key = switch (scope) {
+            case MATCH -> "chat.match-format";
+            case SPECTATOR -> "chat.spectator-format";
+            case LOBBY, GLOBAL -> "chat.lobby-format";
         };
+
+        return plugin.getMessageService().toComponent(key,
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("player", sender.getName()),
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("level", level),
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("message", message));
     }
 
     /**

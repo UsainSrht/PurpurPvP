@@ -11,6 +11,8 @@ public class MatchConfig {
 
     private Kit kit;
     private Arena arena;
+    private com.usainsrht.purpurpvp.arena.ArenaInstance arenaInstance;
+    private com.usainsrht.purpurpvp.arena.ArenaTemplate arenaTemplate;
     private int teamSize;
     private int teamCount;
     private boolean ranked;
@@ -30,6 +32,12 @@ public class MatchConfig {
 
     public Arena getArena() { return arena; }
     public void setArena(Arena arena) { this.arena = arena; }
+
+    public com.usainsrht.purpurpvp.arena.ArenaInstance getArenaInstance() { return arenaInstance; }
+    public void setArenaInstance(com.usainsrht.purpurpvp.arena.ArenaInstance arenaInstance) { this.arenaInstance = arenaInstance; }
+
+    public com.usainsrht.purpurpvp.arena.ArenaTemplate getArenaTemplate() { return arenaTemplate; }
+    public void setArenaTemplate(com.usainsrht.purpurpvp.arena.ArenaTemplate arenaTemplate) { this.arenaTemplate = arenaTemplate; }
 
     public int getTeamSize() { return teamSize; }
     public void setTeamSize(int teamSize) { this.teamSize = teamSize; }

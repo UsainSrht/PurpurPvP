@@ -51,6 +51,14 @@
               <pattern>net.wesjd.anvilgui</pattern>
               <shadedPattern>com.usainsrht.purpurpvp.libs.anvilgui</shadedPattern>
             </relocation>
+            <relocation>
+              <pattern>me.usainsrht.yamlmessage</pattern>
+              <shadedPattern>com.usainsrht.purpurpvp.libs.yamlmessage</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>me.usainsrht.itemapi</pattern>
+              <shadedPattern>com.usainsrht.purpurpvp.libs.itemapi</shadedPattern>
+            </relocation>
           </relocations>
           <filters>
             <filter>
@@ -77,6 +85,10 @@
       <id>codemc-snapshots</id>
       <url>https://repo.codemc.io/repository/maven-snapshots/</url>
     </repository>
+    <repository>
+      <id>codemc-public</id>
+      <url>https://repo.codemc.io/repository/maven-public/</url>
+    </repository>
   </repositories>
   <dependencies>
     <dependency>
@@ -84,6 +96,26 @@
       <artifactId>paper-api</artifactId>
       <version>1.21.11-R0.1-SNAPSHOT</version>
       <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.11.4</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>junit-jupiter-api</artifactId>
+          <groupId>org.junit.jupiter</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>junit-jupiter-params</artifactId>
+          <groupId>org.junit.jupiter</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>junit-jupiter-engine</artifactId>
+          <groupId>org.junit.jupiter</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
   <properties>

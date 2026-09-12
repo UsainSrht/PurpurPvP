@@ -1,8 +1,10 @@
 package com.usainsrht.purpurpvp;
 
 import com.usainsrht.purpurpvp.arena.ArenaManager;
+import com.usainsrht.purpurpvp.arena.DynamicArenaManager;
 import com.usainsrht.purpurpvp.chat.ChatManager;
 import com.usainsrht.purpurpvp.command.DuelCommand;
+import com.usainsrht.purpurpvp.command.PartyCommand;
 import com.usainsrht.purpurpvp.command.PurpurPvPCommand;
 import com.usainsrht.purpurpvp.command.QueueCommand;
 import com.usainsrht.purpurpvp.config.ConfigManager;
@@ -15,8 +17,12 @@ import com.usainsrht.purpurpvp.kit.KitManager;
 import com.usainsrht.purpurpvp.kit.KitNameListener;
 import com.usainsrht.purpurpvp.kit.gui.KitEditorGUI;
 import com.usainsrht.purpurpvp.kit.gui.KitSelectorGUI;
+import com.usainsrht.purpurpvp.lobby.LobbyInventoryManager;
+import com.usainsrht.purpurpvp.lobby.LobbyItemManager;
 import com.usainsrht.purpurpvp.match.MatchListener;
 import com.usainsrht.purpurpvp.match.MatchManager;
+import com.usainsrht.purpurpvp.message.MessageService;
+import com.usainsrht.purpurpvp.party.PartyManager;
 import com.usainsrht.purpurpvp.queue.QueueManager;
 import com.usainsrht.purpurpvp.ranked.RankManager;
 import com.usainsrht.purpurpvp.ranked.leaderboard.LeaderboardGUI;
@@ -40,6 +46,7 @@ public final class PurpurPvP extends JavaPlugin implements Listener {
 
     // Config & Database
     private ConfigManager configManager;
+    private MessageService messageService;
     private DatabaseManager databaseManager;
     private PlayerRepository playerRepository;
     private KitRepository kitRepository;
@@ -48,6 +55,7 @@ public final class PurpurPvP extends JavaPlugin implements Listener {
     // Core Managers
     private KitManager kitManager;
     private ArenaManager arenaManager;
+    private DynamicArenaManager dynamicArenaManager;
     private MatchManager matchManager;
     private RoomManager roomManager;
     private QueueManager queueManager;
@@ -55,6 +63,9 @@ public final class PurpurPvP extends JavaPlugin implements Listener {
     private ChatManager chatManager;
     private RoomSignManager roomSignManager;
     private ScoreboardManager scoreboardManager;
+    private LobbyInventoryManager lobbyInventoryManager;
+    private LobbyItemManager lobbyItemManager;
+    private PartyManager partyManager;
 
     // Listeners
     private KitNameListener kitNameListener;
@@ -71,8 +82,9 @@ public final class PurpurPvP extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
-        // Phase 1: Config
+        // Phase 1: Config & Messages
         configManager = new ConfigManager(this);
+        messageService = new MessageService(this);
 
         // Phase 1: Database
         databaseManager = new DatabaseManager(
@@ -95,6 +107,7 @@ public final class PurpurPvP extends JavaPlugin implements Listener {
         // Phase 2: Kits & Arenas
         kitManager = new KitManager(kitRepository, getLogger());
         arenaManager = new ArenaManager(this);
+        dynamicArenaManager = new DynamicArenaManager(this);
 
         // Phase 3: Match Engine
         matchManager = new MatchManager(this);
@@ -103,11 +116,14 @@ public final class PurpurPvP extends JavaPlugin implements Listener {
         roomManager = new RoomManager(this);
         queueManager = new QueueManager(this);
 
-        // Phase 5: Ranked & Chat
+        // Phase 5: Ranked, Chat, Lobby & Party
         rankManager = new RankManager(this, playerRepository);
         chatManager = new ChatManager(this);
         roomSignManager = new RoomSignManager(this);
         scoreboardManager = new ScoreboardManager(this);
+        lobbyInventoryManager = new LobbyInventoryManager(this);
+        lobbyItemManager = new LobbyItemManager(this);
+        partyManager = new PartyManager(this);
 
         // GUIs
         PaperGuiSettings.init(this);
@@ -122,6 +138,8 @@ public final class PurpurPvP extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new MatchListener(this), this);
         getServer().getPluginManager().registerEvents(chatManager, this);
         getServer().getPluginManager().registerEvents(roomSignManager, this);
+        getServer().getPluginManager().registerEvents(lobbyInventoryManager, this);
+        getServer().getPluginManager().registerEvents(lobbyItemManager, this);
         getServer().getPluginManager().registerEvents(this, this);
 
         // Commands — Modern Paper Brigadier/Lifecycle API
@@ -129,6 +147,7 @@ public final class PurpurPvP extends JavaPlugin implements Listener {
             var commands = event.registrar();
             commands.register(new DuelCommand(this).buildNode(), "Challenge a player to a duel");
             commands.register(new QueueCommand(this).buildNode(), "Join a matchmaking queue");
+            commands.register(new PartyCommand(this).buildNode(), "Party management commands", java.util.List.of("p"));
             commands.register(new PurpurPvPCommand(this).buildNode(), "PurpurPvP admin commands", java.util.List.of("pvp", "ppvp"));
         });
 
@@ -144,11 +163,13 @@ public final class PurpurPvP extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         // Shutdown in reverse order
+        if (partyManager != null) partyManager.disbandAll();
         if (scoreboardManager != null) scoreboardManager.shutdown();
         if (queueManager != null) queueManager.shutdown();
         if (matchManager != null) matchManager.shutdown();
         if (roomSignManager != null) roomSignManager.shutdown();
         if (rankManager != null) rankManager.shutdown();
+        if (dynamicArenaManager != null) dynamicArenaManager.shutdown();
         if (arenaManager != null) arenaManager.saveArenas();
         if (databaseManager != null) databaseManager.close();
 
@@ -171,7 +192,8 @@ public final class PurpurPvP extends JavaPlugin implements Listener {
         // Remove scoreboard
         if (scoreboardManager != null) scoreboardManager.removeBoard(player);
 
-        // Leave any room/queue
+        // Leave any party, room, or queue
+        if (partyManager != null) partyManager.leaveParty(player);
         roomManager.leaveRoom(player.getUniqueId());
         queueManager.leaveQueue(player.getUniqueId());
 
@@ -183,6 +205,7 @@ public final class PurpurPvP extends JavaPlugin implements Listener {
     // ===== Getters =====
 
     public ConfigManager getConfigManager() { return configManager; }
+    public MessageService getMessageService() { return messageService; }
     public DatabaseManager getDatabaseManager() { return databaseManager; }
     public PlayerRepository getPlayerRepository() { return playerRepository; }
     public KitRepository getKitRepository() { return kitRepository; }
@@ -190,6 +213,7 @@ public final class PurpurPvP extends JavaPlugin implements Listener {
 
     public KitManager getKitManager() { return kitManager; }
     public ArenaManager getArenaManager() { return arenaManager; }
+    public DynamicArenaManager getDynamicArenaManager() { return dynamicArenaManager; }
     public MatchManager getMatchManager() { return matchManager; }
     public RoomManager getRoomManager() { return roomManager; }
     public QueueManager getQueueManager() { return queueManager; }
@@ -197,6 +221,9 @@ public final class PurpurPvP extends JavaPlugin implements Listener {
     public ChatManager getChatManager() { return chatManager; }
     public RoomSignManager getRoomSignManager() { return roomSignManager; }
     public ScoreboardManager getScoreboardManager() { return scoreboardManager; }
+    public LobbyInventoryManager getLobbyInventoryManager() { return lobbyInventoryManager; }
+    public LobbyItemManager getLobbyItemManager() { return lobbyItemManager; }
+    public PartyManager getPartyManager() { return partyManager; }
 
     public KitNameListener getKitNameListener() { return kitNameListener; }
 

@@ -69,6 +69,19 @@ public class ConfigManager {
 
     public int getEloKFactor() { return config.getInt("elo.k-factor", 32); }
 
+    // ===== Arena Settings =====
+
+    public String getArenaWorld() { return config.getString("arena.world", "purpurpvp_arenas"); }
+    public int getArenaGridSpacing() { return config.getInt("arena.grid-spacing", 300); }
+    public int getArenaInitialPoolSize() { return config.getInt("arena.initial-pool-size", 5); }
+
+    // ===== Lobby Items =====
+
+    public boolean isLobbyItemsEnabled() { return config.getBoolean("lobby-items.enabled", true); }
+    public org.bukkit.configuration.ConfigurationSection getLobbyItemsSection() {
+        return config.getConfigurationSection("lobby-items.items");
+    }
+
     // ===== Messages =====
 
     public String getMessage(String key) {
