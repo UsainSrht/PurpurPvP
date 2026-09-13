@@ -2,6 +2,7 @@ package com.usainsrht.purpurpvp.command;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.usainsrht.purpurpvp.PurpurPvP;
 import com.usainsrht.purpurpvp.kit.Kit;
@@ -13,6 +14,7 @@ import org.bukkit.entity.Player;
 
 /**
  * Modern Brigadier /party command for party management and party vs party duels.
+ * Fully localized with CommandLocalizationManager.
  */
 @SuppressWarnings("UnstableApiUsage")
 public class PartyCommand {
@@ -24,7 +26,10 @@ public class PartyCommand {
     }
 
     public LiteralCommandNode<CommandSourceStack> buildNode() {
-        return Commands.literal("party")
+        var clm = plugin.getCommandLocalizationManager();
+        String cmdName = clm.getName("party", "party");
+
+        var root = Commands.literal(cmdName)
                 .executes(ctx -> {
                     if (ctx.getSource().getSender() instanceof Player player) {
                         if (plugin.getPartyManager().hasParty(player.getUniqueId())) {
@@ -34,158 +39,195 @@ public class PartyCommand {
                         }
                     }
                     return Command.SINGLE_SUCCESS;
-                })
-                .then(Commands.literal("create")
-                        .executes(ctx -> {
-                            if (ctx.getSource().getSender() instanceof Player player) {
-                                plugin.getPartyManager().createParty(player);
+                });
+
+        // create
+        registerSub(root, "party", "create", Commands.literal("create")
+                .executes(ctx -> {
+                    if (ctx.getSource().getSender() instanceof Player player) {
+                        plugin.getPartyManager().createParty(player);
+                    }
+                    return Command.SINGLE_SUCCESS;
+                }));
+
+        // invite
+        registerSub(root, "party", "invite", Commands.literal("invite")
+                .then(Commands.argument("player", StringArgumentType.word())
+                        .suggests((ctx, b) -> {
+                            for (Player p : Bukkit.getOnlinePlayers()) {
+                                if (!p.getName().equals(ctx.getSource().getSender().getName())) b.suggest(p.getName());
                             }
-                            return Command.SINGLE_SUCCESS;
-                        }))
-                .then(Commands.literal("invite")
-                        .then(Commands.argument("player", StringArgumentType.word())
-                                .suggests((ctx, b) -> {
-                                    for (Player p : Bukkit.getOnlinePlayers()) {
-                                        if (!p.getName().equals(ctx.getSource().getSender().getName())) b.suggest(p.getName());
-                                    }
-                                    return b.buildFuture();
-                                })
-                                .executes(ctx -> {
-                                    if (ctx.getSource().getSender() instanceof Player player) {
-                                        String targetName = StringArgumentType.getString(ctx, "player");
-                                        Player target = Bukkit.getPlayerExact(targetName);
-                                        if (target != null) {
-                                            plugin.getPartyManager().invitePlayer(player, target);
-                                        } else {
-                                            plugin.getMessageService().send(player, "error.player-not-found");
-                                        }
-                                    }
-                                    return Command.SINGLE_SUCCESS;
-                                })))
-                .then(Commands.literal("accept")
-                        .then(Commands.argument("player", StringArgumentType.word())
-                                .executes(ctx -> {
-                                    if (ctx.getSource().getSender() instanceof Player player) {
-                                        String leaderName = StringArgumentType.getString(ctx, "player");
-                                        plugin.getPartyManager().acceptInvite(player, leaderName);
-                                    }
-                                    return Command.SINGLE_SUCCESS;
-                                })))
-                .then(Commands.literal("decline")
-                        .then(Commands.argument("player", StringArgumentType.word())
-                                .executes(ctx -> {
-                                    if (ctx.getSource().getSender() instanceof Player player) {
-                                        String leaderName = StringArgumentType.getString(ctx, "player");
-                                        plugin.getPartyManager().declineInvite(player, leaderName);
-                                    }
-                                    return Command.SINGLE_SUCCESS;
-                                })))
-                .then(Commands.literal("leave")
+                            return b.buildFuture();
+                        })
                         .executes(ctx -> {
                             if (ctx.getSource().getSender() instanceof Player player) {
-                                plugin.getPartyManager().leaveParty(player);
-                            }
-                            return Command.SINGLE_SUCCESS;
-                        }))
-                .then(Commands.literal("disband")
-                        .executes(ctx -> {
-                            if (ctx.getSource().getSender() instanceof Player player) {
-                                Party party = plugin.getPartyManager().getPartyOf(player.getUniqueId());
-                                if (party != null && party.isLeader(player.getUniqueId())) {
-                                    plugin.getPartyManager().disbandParty(party);
+                                String targetName = StringArgumentType.getString(ctx, "player");
+                                Player target = Bukkit.getPlayerExact(targetName);
+                                if (target != null) {
+                                    plugin.getPartyManager().invitePlayer(player, target);
                                 } else {
-                                    plugin.getMessageService().send(player, "party.not-leader");
+                                    plugin.getMessageService().send(player, "error.player-not-found");
                                 }
                             }
                             return Command.SINGLE_SUCCESS;
-                        }))
-                .then(Commands.literal("kick")
-                        .then(Commands.argument("player", StringArgumentType.word())
-                                .executes(ctx -> {
-                                    if (ctx.getSource().getSender() instanceof Player player) {
-                                        String targetName = StringArgumentType.getString(ctx, "player");
-                                        Player target = Bukkit.getPlayerExact(targetName);
-                                        if (target != null) {
-                                            plugin.getPartyManager().kickMember(player, target);
-                                        } else {
-                                            plugin.getMessageService().send(player, "error.player-not-found");
-                                        }
-                                    }
-                                    return Command.SINGLE_SUCCESS;
-                                })))
-                .then(Commands.literal("leader")
-                        .then(Commands.argument("player", StringArgumentType.word())
-                                .executes(ctx -> {
-                                    if (ctx.getSource().getSender() instanceof Player player) {
-                                        String targetName = StringArgumentType.getString(ctx, "player");
-                                        Player target = Bukkit.getPlayerExact(targetName);
-                                        if (target != null) {
-                                            plugin.getPartyManager().transferLeader(player, target);
-                                        }
-                                    }
-                                    return Command.SINGLE_SUCCESS;
-                                })))
-                .then(Commands.literal("chat")
-                        .then(Commands.argument("message", StringArgumentType.greedyString())
-                                .executes(ctx -> {
-                                    if (ctx.getSource().getSender() instanceof Player player) {
-                                        String msg = StringArgumentType.getString(ctx, "message");
-                                        plugin.getPartyManager().partyChat(player, msg);
-                                    }
-                                    return Command.SINGLE_SUCCESS;
-                                })))
-                .then(Commands.literal("split")
+                        })));
+
+        // accept
+        registerSub(root, "party", "accept", Commands.literal("accept")
+                .then(Commands.argument("player", StringArgumentType.word())
                         .executes(ctx -> {
                             if (ctx.getSource().getSender() instanceof Player player) {
-                                Party party = plugin.getPartyManager().getPartyOf(player.getUniqueId());
-                                if (party != null && party.isLeader(player.getUniqueId())) {
-                                    plugin.getPartyManager().startPartySplit(party, null);
-                                }
+                                String leaderName = StringArgumentType.getString(ctx, "player");
+                                plugin.getPartyManager().acceptInvite(player, leaderName);
                             }
                             return Command.SINGLE_SUCCESS;
-                        }))
-                .then(Commands.literal("ffa")
+                        })));
+
+        // decline
+        registerSub(root, "party", "decline", Commands.literal("decline")
+                .then(Commands.argument("player", StringArgumentType.word())
                         .executes(ctx -> {
                             if (ctx.getSource().getSender() instanceof Player player) {
-                                Party party = plugin.getPartyManager().getPartyOf(player.getUniqueId());
-                                if (party != null && party.isLeader(player.getUniqueId())) {
-                                    plugin.getPartyManager().startPartyFFA(party, null);
+                                String leaderName = StringArgumentType.getString(ctx, "player");
+                                plugin.getPartyManager().declineInvite(player, leaderName);
+                            }
+                            return Command.SINGLE_SUCCESS;
+                        })));
+
+        // leave
+        registerSub(root, "party", "leave", Commands.literal("leave")
+                .executes(ctx -> {
+                    if (ctx.getSource().getSender() instanceof Player player) {
+                        plugin.getPartyManager().leaveParty(player);
+                    }
+                    return Command.SINGLE_SUCCESS;
+                }));
+
+        // disband
+        registerSub(root, "party", "disband", Commands.literal("disband")
+                .executes(ctx -> {
+                    if (ctx.getSource().getSender() instanceof Player player) {
+                        Party party = plugin.getPartyManager().getPartyOf(player.getUniqueId());
+                        if (party != null && party.isLeader(player.getUniqueId())) {
+                            plugin.getPartyManager().disbandParty(party);
+                        } else {
+                            plugin.getMessageService().send(player, "party.not-leader");
+                        }
+                    }
+                    return Command.SINGLE_SUCCESS;
+                }));
+
+        // kick
+        registerSub(root, "party", "kick", Commands.literal("kick")
+                .then(Commands.argument("player", StringArgumentType.word())
+                        .executes(ctx -> {
+                            if (ctx.getSource().getSender() instanceof Player player) {
+                                String targetName = StringArgumentType.getString(ctx, "player");
+                                Player target = Bukkit.getPlayerExact(targetName);
+                                if (target != null) {
+                                    plugin.getPartyManager().kickMember(player, target);
+                                } else {
+                                    plugin.getMessageService().send(player, "error.player-not-found");
                                 }
                             }
                             return Command.SINGLE_SUCCESS;
+                        })));
+
+        // leader
+        registerSub(root, "party", "leader", Commands.literal("leader")
+                .then(Commands.argument("player", StringArgumentType.word())
+                        .executes(ctx -> {
+                            if (ctx.getSource().getSender() instanceof Player player) {
+                                String targetName = StringArgumentType.getString(ctx, "player");
+                                Player target = Bukkit.getPlayerExact(targetName);
+                                if (target != null) {
+                                    plugin.getPartyManager().transferLeader(player, target);
+                                }
+                            }
+                            return Command.SINGLE_SUCCESS;
+                        })));
+
+        // chat
+        registerSub(root, "party", "chat", Commands.literal("chat")
+                .then(Commands.argument("message", StringArgumentType.greedyString())
+                        .executes(ctx -> {
+                            if (ctx.getSource().getSender() instanceof Player player) {
+                                String msg = StringArgumentType.getString(ctx, "message");
+                                plugin.getPartyManager().partyChat(player, msg);
+                            }
+                            return Command.SINGLE_SUCCESS;
+                        })));
+
+        // split
+        registerSub(root, "party", "split", Commands.literal("split")
+                .executes(ctx -> {
+                    if (ctx.getSource().getSender() instanceof Player player) {
+                        Party party = plugin.getPartyManager().getPartyOf(player.getUniqueId());
+                        if (party != null && party.isLeader(player.getUniqueId())) {
+                            plugin.getPartyManager().startPartySplit(party, null);
+                        }
+                    }
+                    return Command.SINGLE_SUCCESS;
+                }));
+
+        // ffa
+        registerSub(root, "party", "ffa", Commands.literal("ffa")
+                .executes(ctx -> {
+                    if (ctx.getSource().getSender() instanceof Player player) {
+                        Party party = plugin.getPartyManager().getPartyOf(player.getUniqueId());
+                        if (party != null && party.isLeader(player.getUniqueId())) {
+                            plugin.getPartyManager().startPartyFFA(party, null);
+                        }
+                    }
+                    return Command.SINGLE_SUCCESS;
+                }));
+
+        // duel
+        registerSub(root, "party", "duel", Commands.literal("duel")
+                .then(Commands.literal("accept")
+                        .executes(ctx -> {
+                            if (ctx.getSource().getSender() instanceof Player player) {
+                                plugin.getPartyManager().acceptPartyDuel(player);
+                            }
+                            return Command.SINGLE_SUCCESS;
                         }))
-                .then(Commands.literal("duel")
-                        .then(Commands.literal("accept")
-                                .executes(ctx -> {
-                                    if (ctx.getSource().getSender() instanceof Player player) {
-                                        plugin.getPartyManager().acceptPartyDuel(player);
-                                    }
-                                    return Command.SINGLE_SUCCESS;
-                                }))
-                        .then(Commands.argument("target", StringArgumentType.word())
+                .then(Commands.argument("target", StringArgumentType.word())
+                        .executes(ctx -> {
+                            if (ctx.getSource().getSender() instanceof Player player) {
+                                String targetName = StringArgumentType.getString(ctx, "target");
+                                Player target = Bukkit.getPlayerExact(targetName);
+                                if (target != null) {
+                                    plugin.getPartyManager().sendPartyDuel(player, target, null);
+                                }
+                            }
+                            return Command.SINGLE_SUCCESS;
+                        })
+                        .then(Commands.argument("kit", StringArgumentType.greedyString())
                                 .executes(ctx -> {
                                     if (ctx.getSource().getSender() instanceof Player player) {
                                         String targetName = StringArgumentType.getString(ctx, "target");
                                         Player target = Bukkit.getPlayerExact(targetName);
+                                        String kitName = StringArgumentType.getString(ctx, "kit");
+                                        Kit kit = plugin.getKitManager().getGlobalKit(kitName);
                                         if (target != null) {
-                                            plugin.getPartyManager().sendPartyDuel(player, target, null);
+                                            plugin.getPartyManager().sendPartyDuel(player, target, kit);
                                         }
                                     }
                                     return Command.SINGLE_SUCCESS;
-                                })
-                                .then(Commands.argument("kit", StringArgumentType.greedyString())
-                                        .executes(ctx -> {
-                                            if (ctx.getSource().getSender() instanceof Player player) {
-                                                String targetName = StringArgumentType.getString(ctx, "target");
-                                                Player target = Bukkit.getPlayerExact(targetName);
-                                                String kitName = StringArgumentType.getString(ctx, "kit");
-                                                Kit kit = plugin.getKitManager().getGlobalKit(kitName);
-                                                if (target != null) {
-                                                    plugin.getPartyManager().sendPartyDuel(player, target, kit);
-                                                }
-                                            }
-                                            return Command.SINGLE_SUCCESS;
-                                        }))))
-                .build();
+                                }))));
+
+        return root.build();
+    }
+
+    private void registerSub(LiteralArgumentBuilder<CommandSourceStack> root, String cmdKey, String subKey, LiteralArgumentBuilder<CommandSourceStack> builder) {
+        String localized = plugin.getCommandLocalizationManager().getSubcommand(cmdKey, subKey, subKey);
+        if (!localized.equalsIgnoreCase(subKey)) {
+            // Build a node with the localized literal name
+            var locBuilder = Commands.literal(localized);
+            if (builder.getCommand() != null) locBuilder.executes(builder.getCommand());
+            builder.getArguments().forEach(locBuilder::then);
+            root.then(locBuilder);
+        }
+        root.then(builder);
     }
 }

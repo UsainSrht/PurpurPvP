@@ -38,6 +38,11 @@ public class DynamicArenaManager {
     }
 
     private void initWorld() {
+        if (plugin.getPvPWorldManager() != null) {
+            arenaWorld = plugin.getPvPWorldManager().getDuelWorld();
+            return;
+        }
+
         String worldName = plugin.getConfigManager().getArenaWorld();
         arenaWorld = Bukkit.getWorld(worldName);
 
@@ -97,13 +102,20 @@ public class DynamicArenaManager {
         if (instance == null) {
             // Provision a new instance on the grid
             int index = nextGridIndex.getAndIncrement();
-            int spacing = plugin.getConfigManager().getArenaGridSpacing();
+            int spacing = plugin.getPvPWorldManager() != null
+                    ? plugin.getPvPWorldManager().getDuelGridSpacing()
+                    : plugin.getConfigManager().getArenaGridSpacing();
+
+            int originBaseX = plugin.getPvPWorldManager() != null ? plugin.getPvPWorldManager().getDuelOriginX() : 0;
+            int originBaseZ = plugin.getPvPWorldManager() != null ? plugin.getPvPWorldManager().getDuelOriginZ() : 0;
 
             // 2D grid allocation
-            int gridX = (index % 20) * spacing;
-            int gridZ = (index / 20) * spacing;
+            int gridX = originBaseX + ((index % 20) * spacing);
+            int gridZ = originBaseZ + ((index / 20) * spacing);
 
-            World world = arenaWorld != null ? arenaWorld : Bukkit.getWorlds().getFirst();
+            World world = plugin.getPvPWorldManager() != null
+                    ? plugin.getPvPWorldManager().getDuelWorld()
+                    : (arenaWorld != null ? arenaWorld : Bukkit.getWorlds().getFirst());
             Location origin = new Location(world, gridX, 64, gridZ);
 
             instance = new ArenaInstance(template, index, origin);

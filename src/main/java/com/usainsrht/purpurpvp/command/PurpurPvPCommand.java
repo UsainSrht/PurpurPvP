@@ -3,6 +3,7 @@ package com.usainsrht.purpurpvp.command;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.usainsrht.purpurpvp.PurpurPvP;
 import com.usainsrht.purpurpvp.arena.Arena;
@@ -21,7 +22,7 @@ import java.util.UUID;
 
 /**
  * /purpurpvp — Admin and utility commands tree via Brigadier.
- * Fully localized with YamlMessageAPI.
+ * Fully localized with CommandLocalizationManager and YamlMessageAPI.
  */
 @SuppressWarnings("UnstableApiUsage")
 public class PurpurPvPCommand {
@@ -33,92 +34,109 @@ public class PurpurPvPCommand {
     }
 
     public LiteralCommandNode<CommandSourceStack> buildNode() {
-        return Commands.literal("purpurpvp")
-                .executes(ctx -> { sendHelp(ctx.getSource()); return Command.SINGLE_SUCCESS; })
+        var clm = plugin.getCommandLocalizationManager();
+        String cmdName = clm.getName("purpurpvp", "purpurpvp");
 
-                // /purpurpvp reload
-                .then(Commands.literal("reload")
-                        .requires(src -> src.getSender().hasPermission("purpurpvp.admin"))
-                        .executes(ctx -> {
-                            plugin.getConfigManager().reload();
-                            plugin.getMessageService().reload();
-                            plugin.getArenaManager().loadArenas();
-                            plugin.getDynamicArenaManager().loadTemplates();
-                            plugin.getKitManager().loadGlobalKits();
-                            if (plugin.getLobbyItemManager() != null) plugin.getLobbyItemManager().loadItems();
-                            plugin.getMessageService().send(ctx.getSource().getSender(), "admin.reload");
-                            return Command.SINGLE_SUCCESS;
-                        }))
+        var root = Commands.literal(cmdName)
+                .executes(ctx -> { sendHelp(ctx.getSource()); return Command.SINGLE_SUCCESS; });
 
-                // /purpurpvp setlobby
-                .then(Commands.literal("setlobby")
-                        .requires(src -> src.getSender().hasPermission("purpurpvp.admin"))
-                        .executes(ctx -> {
-                            if (ctx.getSource().getSender() instanceof Player player) {
-                                plugin.setLobbyLocation(player.getLocation());
-                                plugin.getMessageService().send(player, "admin.setlobby");
-                            }
-                            return Command.SINGLE_SUCCESS;
-                        }))
+        // /purpurpvp reload
+        registerSub(root, "purpurpvp", "reload", Commands.literal("reload")
+                .requires(src -> src.getSender().hasPermission("purpurpvp.admin"))
+                .executes(ctx -> {
+                    plugin.getConfigManager().reload();
+                    plugin.getCommandLocalizationManager().reload();
+                    plugin.getMessageService().reload();
+                    plugin.getArenaManager().loadArenas();
+                    plugin.getDynamicArenaManager().loadTemplates();
+                    plugin.getKitManager().loadGlobalKits();
+                    if (plugin.getPvPWorldManager() != null) plugin.getPvPWorldManager().reload();
+                    if (plugin.getFfaManager() != null) plugin.getFfaManager().loadArenas();
+                    if (plugin.getLobbyItemManager() != null) plugin.getLobbyItemManager().loadItems();
+                    plugin.getMessageService().send(ctx.getSource().getSender(), "admin.reload");
+                    return Command.SINGLE_SUCCESS;
+                }));
 
-                // /purpurpvp leaderboard
-                .then(Commands.literal("leaderboard")
-                        .executes(ctx -> {
-                            if (ctx.getSource().getSender() instanceof Player player) plugin.getLeaderboardGUI().open(player);
-                            return Command.SINGLE_SUCCESS;
-                        }))
+        // /purpurpvp setlobby
+        registerSub(root, "purpurpvp", "setlobby", Commands.literal("setlobby")
+                .requires(src -> src.getSender().hasPermission("purpurpvp.admin"))
+                .executes(ctx -> {
+                    if (ctx.getSource().getSender() instanceof Player player) {
+                        plugin.setLobbyLocation(player.getLocation());
+                        plugin.getMessageService().send(player, "admin.setlobby");
+                    }
+                    return Command.SINGLE_SUCCESS;
+                }));
 
-                // /purpurpvp inspect <matchId> <player>
-                .then(Commands.literal("inspect")
-                        .then(Commands.argument("match", StringArgumentType.word())
-                                .then(Commands.argument("target", StringArgumentType.word())
-                                        .executes(ctx -> {
-                                            if (ctx.getSource().getSender() instanceof Player viewer) {
-                                                try {
-                                                    UUID matchId = UUID.fromString(StringArgumentType.getString(ctx, "match"));
-                                                    String targetName = StringArgumentType.getString(ctx, "target");
-                                                    MatchInventorySnapshot snapshot = plugin.getMatchManager().getSnapshot(matchId, targetName);
-                                                    if (snapshot != null) {
-                                                        InventoryInspectGUI.open(viewer, snapshot);
-                                                    } else {
-                                                        plugin.getMessageService().send(viewer, "error.player-not-found");
-                                                    }
-                                                } catch (IllegalArgumentException e) {
-                                                    plugin.getMessageService().send(viewer, "error.invalid-args", Placeholder.parsed("usage", "/purpurpvp inspect <matchId> <player>"));
-                                                }
-                                            }
-                                            return Command.SINGLE_SUCCESS;
-                                        }))))
+        // /purpurpvp leaderboard
+        registerSub(root, "purpurpvp", "leaderboard", Commands.literal("leaderboard")
+                .executes(ctx -> {
+                    if (ctx.getSource().getSender() instanceof Player player) plugin.getLeaderboardGUI().open(player);
+                    return Command.SINGLE_SUCCESS;
+                }));
 
-                // /purpurpvp stats [player]
-                .then(Commands.literal("stats")
-                        .executes(ctx -> {
-                            if (ctx.getSource().getSender() instanceof Player player) showStats(player, player);
-                            return Command.SINGLE_SUCCESS;
-                        })
+        // /purpurpvp inspect <matchId> <player>
+        registerSub(root, "purpurpvp", "inspect", Commands.literal("inspect")
+                .then(Commands.argument("match", StringArgumentType.word())
                         .then(Commands.argument("target", StringArgumentType.word())
-                                .suggests((ctx, b) -> { Bukkit.getOnlinePlayers().forEach(p -> b.suggest(p.getName())); return b.buildFuture(); })
                                 .executes(ctx -> {
-                                    if (ctx.getSource().getSender() instanceof Player player) {
-                                        Player target = Bukkit.getPlayerExact(StringArgumentType.getString(ctx, "target"));
-                                        if (target != null) showStats(player, target);
-                                        else plugin.getMessageService().send(player, "error.player-not-found");
+                                    if (ctx.getSource().getSender() instanceof Player viewer) {
+                                        try {
+                                            UUID matchId = UUID.fromString(StringArgumentType.getString(ctx, "match"));
+                                            String targetName = StringArgumentType.getString(ctx, "target");
+                                            MatchInventorySnapshot snapshot = plugin.getMatchManager().getSnapshot(matchId, targetName);
+                                            if (snapshot != null) {
+                                                InventoryInspectGUI.open(viewer, snapshot);
+                                            } else {
+                                                plugin.getMessageService().send(viewer, "error.player-not-found");
+                                            }
+                                        } catch (IllegalArgumentException e) {
+                                            plugin.getMessageService().send(viewer, "error.invalid-args", Placeholder.parsed("usage", "/purpurpvp inspect <matchId> <player>"));
+                                        }
                                     }
                                     return Command.SINGLE_SUCCESS;
-                                })))
+                                }))));
 
-                // /purpurpvp arena ...
-                .then(arenaSubcommand())
+        // /purpurpvp stats [player]
+        registerSub(root, "purpurpvp", "stats", Commands.literal("stats")
+                .executes(ctx -> {
+                    if (ctx.getSource().getSender() instanceof Player player) showStats(player, player);
+                    return Command.SINGLE_SUCCESS;
+                })
+                .then(Commands.argument("target", StringArgumentType.word())
+                        .suggests((ctx, b) -> { Bukkit.getOnlinePlayers().forEach(p -> b.suggest(p.getName())); return b.buildFuture(); })
+                        .executes(ctx -> {
+                            if (ctx.getSource().getSender() instanceof Player player) {
+                                Player target = Bukkit.getPlayerExact(StringArgumentType.getString(ctx, "target"));
+                                if (target != null) showStats(player, target);
+                                else plugin.getMessageService().send(player, "error.player-not-found");
+                            }
+                            return Command.SINGLE_SUCCESS;
+                        })));
 
-                // /purpurpvp kit ...
-                .then(kitSubcommand())
+        // /purpurpvp arena ...
+        registerSub(root, "purpurpvp", "arena", arenaSubcommand());
 
-                .build();
+        // /purpurpvp kit ...
+        registerSub(root, "purpurpvp", "kit", kitSubcommand());
+
+        return root.build();
+    }
+
+    private void registerSub(LiteralArgumentBuilder<CommandSourceStack> root, String cmdKey, String subKey, LiteralArgumentBuilder<CommandSourceStack> builder) {
+        String localized = plugin.getCommandLocalizationManager().getSubcommand(cmdKey, subKey, subKey);
+        if (!localized.equalsIgnoreCase(subKey)) {
+            var locBuilder = Commands.literal(localized);
+            if (builder.getCommand() != null) locBuilder.executes(builder.getCommand());
+            builder.getArguments().forEach(locBuilder::then);
+            root.then(locBuilder);
+        }
+        root.then(builder);
     }
 
     // ===== Arena =====
 
-    private com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> arenaSubcommand() {
+    private LiteralArgumentBuilder<CommandSourceStack> arenaSubcommand() {
         return Commands.literal("arena")
                 .requires(src -> src.getSender().hasPermission("purpurpvp.admin"))
                 .then(Commands.literal("create")
@@ -130,7 +148,11 @@ public class PurpurPvPCommand {
                                         return Command.SINGLE_SUCCESS;
                                     }
                                     Arena arena = plugin.getArenaManager().createArena(name);
-                                    if (ctx.getSource().getSender() instanceof Player p) arena.setWorld(p.getWorld().getName());
+                                    if (ctx.getSource().getSender() instanceof Player p) {
+                                        arena.setWorld(p.getWorld().getName());
+                                    } else {
+                                        arena.setWorld(plugin.getPvPWorldManager() != null ? plugin.getPvPWorldManager().getDuelWorldName() : "world");
+                                    }
                                     plugin.getArenaManager().saveArenas();
                                     plugin.getDynamicArenaManager().loadTemplates();
                                     plugin.getMessageService().send(ctx.getSource().getSender(), "admin.arena-created", Placeholder.parsed("name", name));
@@ -150,7 +172,7 @@ public class PurpurPvPCommand {
                         .then(Commands.argument("name", StringArgumentType.word())
                                 .suggests((ctx, b) -> { plugin.getArenaManager().getAllArenas().forEach(a -> b.suggest(a.getName())); return b.buildFuture(); })
                                 .then(Commands.argument("team", IntegerArgumentType.integer(0))
-                                        .executes(ctx -> {
+                                         .executes(ctx -> {
                                             if (!(ctx.getSource().getSender() instanceof Player player)) return Command.SINGLE_SUCCESS;
                                             String name = StringArgumentType.getString(ctx, "name");
                                             int team = IntegerArgumentType.getInteger(ctx, "team");
@@ -203,7 +225,7 @@ public class PurpurPvPCommand {
 
     // ===== Kit =====
 
-    private com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> kitSubcommand() {
+    private LiteralArgumentBuilder<CommandSourceStack> kitSubcommand() {
         return Commands.literal("kit")
                 .requires(src -> src.getSender().hasPermission("purpurpvp.admin"))
                 .then(Commands.literal("create")

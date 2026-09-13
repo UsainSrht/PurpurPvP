@@ -24,26 +24,47 @@ public class QueueCommand {
     }
 
     public LiteralCommandNode<CommandSourceStack> buildNode() {
-        return Commands.literal("queue")
+        var clm = plugin.getCommandLocalizationManager();
+        String cmdName = clm.getName("queue", "queue");
+        String leaveSub = clm.getSubcommand("queue", "leave", "leave");
+
+        var root = Commands.literal(cmdName)
                 .requires(src -> src.getSender().hasPermission("purpurpvp.queue"))
                 .executes(ctx -> {
                     if (ctx.getSource().getSender() instanceof Player player) {
                         plugin.getMessageService().send(player, "error.invalid-args",
-                                Placeholder.parsed("usage", "/queue <mode> | /queue leave (Modes: " + String.join(", ", plugin.getQueueManager().getAvailableModes()) + ")"));
+                                Placeholder.parsed("usage", "/" + cmdName + " <mode> | /" + cmdName + " " + leaveSub + " (Modes: " + String.join(", ", plugin.getQueueManager().getAvailableModes()) + ")"));
                     }
                     return Command.SINGLE_SUCCESS;
-                })
-                .then(Commands.literal("leave")
-                        .executes(ctx -> {
-                            if (ctx.getSource().getSender() instanceof Player player) {
-                                if (!plugin.getQueueManager().isInQueue(player.getUniqueId())) {
-                                    plugin.getMessageService().send(player, "queue.left");
-                                } else {
-                                    plugin.getQueueManager().leaveQueue(player.getUniqueId());
-                                }
+                });
+
+        // leave subcommand
+        root.then(Commands.literal(leaveSub)
+                .executes(ctx -> {
+                    if (ctx.getSource().getSender() instanceof Player player) {
+                        if (!plugin.getQueueManager().isInQueue(player.getUniqueId())) {
+                            plugin.getMessageService().send(player, "queue.left");
+                        } else {
+                            plugin.getQueueManager().leaveQueue(player.getUniqueId());
+                        }
+                    }
+                    return Command.SINGLE_SUCCESS;
+                }));
+        if (!leaveSub.equalsIgnoreCase("leave")) {
+            root.then(Commands.literal("leave")
+                    .executes(ctx -> {
+                        if (ctx.getSource().getSender() instanceof Player player) {
+                            if (!plugin.getQueueManager().isInQueue(player.getUniqueId())) {
+                                plugin.getMessageService().send(player, "queue.left");
+                            } else {
+                                plugin.getQueueManager().leaveQueue(player.getUniqueId());
                             }
-                            return Command.SINGLE_SUCCESS;
-                        }))
+                        }
+                        return Command.SINGLE_SUCCESS;
+                    }));
+        }
+
+        return root
                 .then(Commands.argument("mode", StringArgumentType.word())
                         .suggests((ctx, builder) -> {
                             for (String mode : plugin.getQueueManager().getAvailableModes()) builder.suggest(mode);

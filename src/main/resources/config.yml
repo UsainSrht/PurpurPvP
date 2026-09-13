@@ -13,6 +13,34 @@ match:
   countdown-seconds: 5
   max-room-idle-seconds: 300
 
+# ==============================================================================
+#                      World & Arena Layout Architecture
+# To ensure smooth gameplay and zero terrain loading screens when players teleport
+# between Lobby, Duel matches, and FFA arenas, you can place them on the SAME world.
+# ==============================================================================
+world-settings:
+  # Strategy:
+  #   SAME_WORLD       - Lobby, Duels, and FFA share one world (instant teleports, no terrain loading screen).
+  #   SEPARATE_WORLDS  - Lobby, Duels, and FFA each have their own dedicated world.
+  strategy: SAME_WORLD
+
+  # Shared world name (used when strategy is SAME_WORLD)
+  shared-world: "world"
+
+  lobby:
+    world: "world"
+
+  duels:
+    world: "purpurpvp_duels"  # Used when SEPARATE_WORLDS
+    origin-x: 10000
+    origin-z: 10000
+    grid-spacing: 300
+
+  ffa:
+    world: "purpurpvp_ffa"    # Used when SEPARATE_WORLDS
+    origin-x: -10000
+    origin-z: -10000
+
 arena:
   world: "purpurpvp_arenas"
   grid-spacing: 300

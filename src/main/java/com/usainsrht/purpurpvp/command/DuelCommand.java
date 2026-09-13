@@ -37,7 +37,12 @@ public class DuelCommand {
     }
 
     public LiteralCommandNode<CommandSourceStack> buildNode() {
-        return Commands.literal("duel")
+        var clm = plugin.getCommandLocalizationManager();
+        String cmdName = clm.getName("duel", "duel");
+        String acceptSub = clm.getSubcommand("duel", "accept", "accept");
+        String declineSub = clm.getSubcommand("duel", "decline", "decline");
+
+        var root = Commands.literal(cmdName)
                 .requires(src -> src.getSender().hasPermission("purpurpvp.duel"))
                 // /duel (no args) — open room browser
                 .executes(ctx -> {
@@ -45,19 +50,37 @@ public class DuelCommand {
                         plugin.getRoomBrowserGUI().open(player);
                     }
                     return Command.SINGLE_SUCCESS;
-                })
-                // /duel accept
-                .then(Commands.literal("accept")
-                        .executes(ctx -> {
-                            if (ctx.getSource().getSender() instanceof Player player) acceptDuel(player);
-                            return Command.SINGLE_SUCCESS;
-                        }))
-                // /duel decline
-                .then(Commands.literal("decline")
-                        .executes(ctx -> {
-                            if (ctx.getSource().getSender() instanceof Player player) declineDuel(player);
-                            return Command.SINGLE_SUCCESS;
-                        }))
+                });
+
+        // accept subcommand
+        root.then(Commands.literal(acceptSub)
+                .executes(ctx -> {
+                    if (ctx.getSource().getSender() instanceof Player player) acceptDuel(player);
+                    return Command.SINGLE_SUCCESS;
+                }));
+        if (!acceptSub.equalsIgnoreCase("accept")) {
+            root.then(Commands.literal("accept")
+                    .executes(ctx -> {
+                        if (ctx.getSource().getSender() instanceof Player player) acceptDuel(player);
+                        return Command.SINGLE_SUCCESS;
+                    }));
+        }
+
+        // decline subcommand
+        root.then(Commands.literal(declineSub)
+                .executes(ctx -> {
+                    if (ctx.getSource().getSender() instanceof Player player) declineDuel(player);
+                    return Command.SINGLE_SUCCESS;
+                }));
+        if (!declineSub.equalsIgnoreCase("decline")) {
+            root.then(Commands.literal("decline")
+                    .executes(ctx -> {
+                        if (ctx.getSource().getSender() instanceof Player player) declineDuel(player);
+                        return Command.SINGLE_SUCCESS;
+                    }));
+        }
+
+        return root
                 // /duel <player> [kit]
                 .then(Commands.argument("player", StringArgumentType.word())
                         .suggests((ctx, builder) -> {

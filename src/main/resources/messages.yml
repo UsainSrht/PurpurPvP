@@ -246,3 +246,12 @@ error:
   player-not-found: "<red>Player not found."
   invalid-args: "<red>Invalid arguments. Usage: <usage>"
   already-in-match: "<red>You cannot do that while in a match!"
+
+ffa:
+  joined: "<green>Joined FFA arena <gold><arena></gold>! Fight to the death!"
+  left: "<yellow>You returned to the lobby from FFA."
+  already-in-ffa: "<red>You are already in an FFA arena! Use /ffa leave first."
+  not-in-ffa: "<red>You are not in an FFA arena."
+  kill: "<green>⚔ You killed <yellow><victim></yellow> in FFA!"
+  killed-by: "<red>☠ You were killed by <yellow><killer></yellow> in FFA!"
+  list-entry: "<gray>• <gold><arena></gold> (<yellow><players></yellow> players online)</gray>"

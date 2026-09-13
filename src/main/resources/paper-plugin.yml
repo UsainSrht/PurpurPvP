@@ -1,7 +1,9 @@
 name: PurpurPvP
 version: '1.0'
 main: com.usainsrht.purpurpvp.PurpurPvP
-api-version: '1.21'
+loader: com.usainsrht.purpurpvp.PurpurPvPLoader
+bootstrapper: com.usainsrht.purpurpvp.PurpurPvPBootstrap
+api-version: '26.2'
 description: A comprehensive PvP plugin with duels, kits, ranked, and matchmaking.
 authors:
   - usainsrht

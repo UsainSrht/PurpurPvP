@@ -42,5 +42,23 @@ public class Kit {
 
     public boolean isGlobal() { return global; }
     public void setGlobal(boolean global) { this.global = global; }
+
+    public void applyTo(org.bukkit.entity.Player player) {
+        player.getInventory().clear();
+        if (contents != null) {
+            for (int i = 0; i < contents.length && i < 36; i++) {
+                if (contents[i] != null) {
+                    player.getInventory().setItem(i, contents[i].clone());
+                }
+            }
+        }
+        if (armor != null) {
+            player.getInventory().setArmorContents(armor.clone());
+        }
+        if (offhand != null) {
+            player.getInventory().setItemInOffHand(offhand.clone());
+        }
+        player.updateInventory();
+    }
 }
 

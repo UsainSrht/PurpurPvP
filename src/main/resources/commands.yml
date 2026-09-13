@@ -1,0 +1,70 @@
+# ==============================================================================
+#                      PurpurPvP Command Localization
+#  Configure root command names, aliases, descriptions, and subcommand names.
+#  This enables 100% full localization into any language (Turkish, Spanish, etc.).
+# ==============================================================================
+
+commands:
+  duel:
+    name: "duel"
+    aliases:
+      - "duello"
+      - "challenge"
+    description: "Challenge a player to a duel or browse rooms"
+    subcommands:
+      accept: "accept"
+      decline: "decline"
+
+  queue:
+    name: "queue"
+    aliases:
+      - "q"
+      - "siraya-gir"
+    description: "Join a matchmaking queue"
+    subcommands:
+      leave: "leave"
+
+  party:
+    name: "party"
+    aliases:
+      - "p"
+      - "grup"
+    description: "Party management commands and party duels"
+    subcommands:
+      create: "create"
+      invite: "invite"
+      accept: "accept"
+      decline: "decline"
+      leave: "leave"
+      kick: "kick"
+      disband: "disband"
+      duel: "duel"
+      ffa: "ffa"
+      split: "split"
+      chat: "chat"
+      info: "info"
+
+  purpurpvp:
+    name: "purpurpvp"
+    aliases:
+      - "pvp"
+      - "ppvp"
+    description: "PurpurPvP administrator commands"
+    subcommands:
+      reload: "reload"
+      setlobby: "setlobby"
+      leaderboard: "leaderboard"
+      inspect: "inspect"
+      arena: "arena"
+      kit: "kit"
+      ffa: "ffa"
+
+  ffa:
+    name: "ffa"
+    aliases:
+      - "freeforall"
+    description: "Join or leave public FFA battle arenas"
+    subcommands:
+      join: "join"
+      leave: "leave"
+      list: "list"

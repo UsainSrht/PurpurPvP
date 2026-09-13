@@ -228,9 +228,27 @@ public class RankManager {
         }
     }
 
+    public void recordFfaKill(UUID killerUuid, UUID victimUuid) {
+        PlayerProfile killer = getProfile(killerUuid);
+        if (killer != null) {
+            killer.addKills(1);
+            long xpPerKill = plugin.getConfigManager().getXpPerKill();
+            killer.addXp(xpPerKill);
+            int newLevel = (int) (killer.getXp() / plugin.getConfigManager().getXpPerLevel()) + 1;
+            if (newLevel > killer.getLevel()) {
+                int oldLevel = killer.getLevel();
+                killer.setLevel(newLevel);
+                onLevelUp(killerUuid, oldLevel, newLevel);
+            }
+        }
+        PlayerProfile victim = getProfile(victimUuid);
+        if (victim != null) {
+            victim.addDeaths(1);
+        }
+    }
+
     public void shutdown() {
         if (saveTask != null) saveTask.cancel();
-        saveAll();
+        saveAllDirty();
     }
 }
-
